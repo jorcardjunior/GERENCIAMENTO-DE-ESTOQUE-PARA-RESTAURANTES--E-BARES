@@ -1,0 +1,19 @@
+-- Drop existing tables if they exist to start fresh
+DROP TABLE IF EXISTS public.diet_items CASCADE;
+DROP TABLE IF EXISTS public.diet_meals CASCADE;
+DROP TABLE IF EXISTS public.diets CASCADE;
+DROP TABLE IF EXISTS public.assigned_diets CASCADE;
+DROP TABLE IF EXISTS public.workout_log_items CASCADE;
+DROP TABLE IF EXISTS public.workout_logs CASCADE;
+DROP TABLE IF EXISTS public.workout_sessions CASCADE;
+DROP TABLE IF EXISTS public.session_sets CASCADE;
+DROP TABLE IF EXISTS public.workout_exercises CASCADE;
+DROP TABLE IF EXISTS public.workouts CASCADE;
+DROP TABLE IF EXISTS public.assigned_workouts CASCADE;
+DROP TABLE IF EXISTS public.exercises CASCADE;
+DROP TABLE IF EXISTS public.progress_entries CASCADE;
+DROP TABLE IF EXISTS public.biometrics_log CASCADE;
+DROP TABLE IF EXISTS public.student_profiles CASCADE;
+DROP TABLE IF EXISTS public.subscriptions CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.custom_projects CASCADE;
