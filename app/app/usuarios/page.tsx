@@ -134,22 +134,22 @@ export default function UsuariosPage() {
         </form>
       )}
 
-      <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#f8fafc] text-[#64748b] text-left">
-              <th className="px-6 py-3 font-medium">Nome</th>
-              <th className="px-6 py-3 font-medium">Email</th>
-              <th className="px-6 py-3 font-medium">Perfil</th>
-              <th className="px-6 py-3 font-medium">Status</th>
+              <th className="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Nome</th>
+              <th className="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Email</th>
+              <th className="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Perfil</th>
+              <th className="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Status</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-t border-[#e2e8f0] hover:bg-[#f8fafc]">
-                <td className="px-6 py-3 font-medium text-[#0f172a]">{u.name}</td>
-                <td className="px-6 py-3 text-[#64748b]">{u.email}</td>
-                <td className="px-6 py-3">
+                <td className="px-4 sm:px-6 py-3 font-medium text-[#0f172a] whitespace-nowrap">{u.name}</td>
+                <td className="px-4 sm:px-6 py-3 text-[#64748b] whitespace-nowrap">{u.email}</td>
+                <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
                   <span
                     className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                       u.role === "admin"
@@ -160,7 +160,7 @@ export default function UsuariosPage() {
                     {u.role === "admin" ? "Admin" : "Staff"}
                   </span>
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1 text-xs text-[#16a34a]">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#16a34a]" />
                     Ativo

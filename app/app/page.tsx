@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function AppPage() {
-  redirect("/app/gestao");
+  redirect("/app/dashboard");
 }

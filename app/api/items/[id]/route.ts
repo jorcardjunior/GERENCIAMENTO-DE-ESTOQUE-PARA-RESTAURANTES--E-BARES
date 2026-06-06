@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { items } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { normalizeItemName } from "@/lib/validation";
 import { eq } from "drizzle-orm";
 
 export async function PATCH(
@@ -13,46 +14,61 @@ export async function PATCH(
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const { id } = await params;
-  const itemId = Number(id);
+  try {
+    const { id } = await params;
+    const itemId = Number(id);
 
-  const body = await request.json();
-  const allowedFields = [
-    "currentQuantity",
-    "current_quantity",
-    "expiryDate",
-    "expiry_date",
-    "countDate",
-    "count_date",
-    "responsibleUser",
-    "responsible_user",
-    "minStock",
-    "min_stock",
-    "name",
-    "unit",
-  ];
+    const body = await request.json();
 
-  const updateData: Record<string, any> = {};
-  for (const key of allowedFields) {
-    const dbKey = key.replace(/[A-Z]/g, (m: string) => `_${m.toLowerCase()}`);
-    if (body[key] !== undefined) {
-      updateData[dbKey] = body[key];
+    const updateData: Record<string, any> = {};
+
+    if (body.currentQuantity !== undefined || body.current_quantity !== undefined) {
+      const val = body.currentQuantity !== undefined ? body.currentQuantity : body.current_quantity;
+      updateData.currentQuantity = String(Number(val) || 0);
     }
+    if (body.expiryDate !== undefined || body.expiry_date !== undefined) {
+      const val = body.expiryDate !== undefined ? body.expiryDate : body.expiry_date;
+      updateData.expiryDate = val || null;
+    }
+    if (body.countDate !== undefined || body.count_date !== undefined) {
+      const val = body.countDate !== undefined ? body.countDate : body.count_date;
+      updateData.countDate = val;
+    }
+    if (body.responsibleUser !== undefined || body.responsible_user !== undefined) {
+      const val = body.responsibleUser !== undefined ? body.responsibleUser : body.responsible_user;
+      updateData.responsibleUser = val || null;
+    }
+    if (body.minStock !== undefined || body.min_stock !== undefined) {
+      const val = body.minStock !== undefined ? body.minStock : body.min_stock;
+      updateData.minStock = String(Number(val) || 0);
+    }
+    if (body.name !== undefined) {
+      updateData.name = normalizeItemName(body.name);
+    }
+    if (body.unit !== undefined) {
+      updateData.unit = body.unit;
+    }
+    if (body.unitPrice !== undefined || body.unit_price !== undefined) {
+      const val = body.unitPrice !== undefined ? body.unitPrice : body.unit_price;
+      updateData.unitPrice = val === null || val === "" ? null : String(Number(val) || 0);
+    }
+
+    updateData.updatedAt = new Date();
+
+    const [item] = await db
+      .update(items)
+      .set(updateData)
+      .where(eq(items.id, itemId))
+      .returning();
+
+    return NextResponse.json(item);
+  } catch (error: any) {
+    console.error("Erro ao atualizar item:", error);
+    return NextResponse.json(
+      { error: error?.message || "Erro interno ao atualizar item" },
+      { status: 500 }
+    );
   }
-
-  if (body.responsibleUser !== undefined) {
-    updateData.responsible_user = body.responsibleUser;
-  }
-
-  updateData.updated_at = new Date();
-
-  const [item] = await db
-    .update(items)
-    .set(updateData)
-    .where(eq(items.id, itemId))
-    .returning();
-
-  return NextResponse.json(item);
 }
 
 export async function DELETE(
@@ -60,8 +76,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
   const { id } = await params;

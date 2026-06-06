@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { categories, items } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { normalizeCategoryName } from "@/lib/validation";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
@@ -22,18 +23,22 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const { name } = await request.json();
+  let { name, color } = await request.json();
+  name = normalizeCategoryName(name);
   if (!name) {
-    return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
+    return NextResponse.json({ error: "Nome inválido" }, { status: 400 });
+  }
+  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) {
+    color = "#2563eb";
   }
 
   const [category] = await db
     .insert(categories)
-    .values({ name, createdBy: session.id })
+    .values({ name, color, createdBy: session.id })
     .returning();
 
   return NextResponse.json(category);

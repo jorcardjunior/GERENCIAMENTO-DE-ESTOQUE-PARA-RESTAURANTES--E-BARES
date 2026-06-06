@@ -4,14 +4,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Package, ClipboardList, Users, LogOut, Menu, X } from "lucide-react";
+import { Package, ClipboardList, Users, LogOut, Menu, X, LayoutDashboard, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
 const navItems = [
-  { href: "/app/gestao", label: "Gestão", icon: Package, adminOnly: true },
+  { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
+  { href: "/app/gestao", label: "Gestão de Estoque", icon: Package, adminOnly: false },
   { href: "/app/preenchimento", label: "Preenchimento", icon: ClipboardList, adminOnly: false },
   { href: "/app/usuarios", label: "Usuários", icon: Users, adminOnly: true },
+  { href: "/app/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

@@ -8,7 +8,7 @@ export const Route = createFileRoute("/app/")({
 function AppRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
-    navigate({ to: "/app/gestao", replace: true });
+    navigate({ to: "/app/dashboard", replace: true });
   }, [navigate]);
   return null;
 }

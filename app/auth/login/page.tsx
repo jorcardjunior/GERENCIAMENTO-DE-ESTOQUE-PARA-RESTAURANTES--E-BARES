@@ -20,7 +20,7 @@ export default function LoginPage() {
       const user = await login(email, password);
       toast.success(`Bem-vindo, ${user.name}!`);
       if (user.role === "admin") {
-        router.push("/app/gestao");
+        router.push("/app/dashboard");
       } else {
         router.push("/app/preenchimento");
       }

@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { normalizeName } from "@/lib/validation";
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, role } = await request.json();
+    let { name, email, password, role } = await request.json();
+    name = normalizeName(name);
 
     if (!name || !email || !password) {
       return NextResponse.json(

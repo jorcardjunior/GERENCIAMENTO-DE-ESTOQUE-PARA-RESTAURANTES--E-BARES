@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeName } from "@/lib/validation";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -21,7 +22,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await register(name, email, password, "staff");
+      await register(normalizeName(name), email, password, "staff");
       toast.success("Conta criada com sucesso!");
     } catch (err: any) {
       toast.error(err.message);

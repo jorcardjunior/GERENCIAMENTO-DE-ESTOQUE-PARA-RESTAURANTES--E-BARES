@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { Search, Save, X } from "lucide-react";
+import { Package, Save, Loader2, Box, User, Lightbulb, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type Responsible = { id: number; name: string } | null;
 type Item = {
@@ -12,6 +12,7 @@ type Item = {
   unit: string;
   minStock: string;
   currentQuantity: string;
+  unitPrice: string | null;
   countDate: string | null;
   expiryDate: string | null;
   responsibleUser: number | null;
@@ -23,288 +24,343 @@ type Category = {
   items: Item[];
 };
 
-type ItemChange = {
-  id: number;
-  currentQuantity: string;
-  expiryDate: string;
-  countDate: string;
-  responsibleUser: number;
-};
-
 export default function PreenchimentoPage() {
   const { user } = useAuth();
+
   const [categories, setCategories] = useState<Category[]>([]);
-  const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
-  const [search, setSearch] = useState("");
-  const [filterCat, setFilterCat] = useState<number | "all">("all");
-  const [changes, setChanges] = useState<Record<number, ItemChange>>({});
+  const [loading, setLoading] = useState(true);
+
+  const [selectedCatId, setSelectedCatId] = useState<number | "">("");
+  const [selectedItemId, setSelectedItemId] = useState<number | "">("");
+  const [quantity, setQuantity] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [saving, setSaving] = useState(false);
-  const inputRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
+  const [summary, setSummary] = useState<{ name: string; total: number; low: boolean } | null>(null);
+
+  const filteredItems = categories
+    .filter((c) => !selectedCatId || c.id === selectedCatId)
+    .flatMap((c) => c.items);
+
+  const selectedItem = categories
+    .flatMap((c) => c.items)
+    .find((i) => i.id === selectedItemId) || null;
+
+  const currentStock = Number(selectedItem?.currentQuantity ?? 0);
+  const minStock = Number(selectedItem?.minStock ?? 0);
+
+  const getStockStatus = (stock: number, min: number) => {
+    if (stock <= 0) return { label: "Crítico", color: "text-red-600 bg-red-50 border-red-200" };
+    if (stock < min) return { label: "Baixo", color: "text-amber-600 bg-amber-50 border-amber-200" };
+    return { label: "Saudável", color: "text-emerald-600 bg-emerald-50 border-emerald-200" };
+  };
 
   const loadData = useCallback(async () => {
-    const [catRes, userRes] = await Promise.all([
-      fetch("/api/categories"),
-      fetch("/api/users"),
-    ]);
-    if (catRes.ok) setCategories(await catRes.json());
-    if (userRes.ok) setUsers(await userRes.json());
+    setLoading(true);
+    try {
+      const [catRes, userRes] = await Promise.all([
+        fetch("/api/categories"),
+        fetch("/api/users"),
+      ]);
+      if (catRes.ok) setCategories(await catRes.json());
+      if (!catRes.ok) throw new Error("Erro ao carregar categorias");
+    } catch (err: any) {
+      toast.error("Erro ao carregar dados: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  function todayStr() {
-    return new Date().toISOString().split("T")[0];
-  }
-
-  function initChange(item: Item): ItemChange {
-    return {
-      id: item.id,
-      currentQuantity: item.currentQuantity,
-      expiryDate: item.expiryDate || "",
-      countDate: item.countDate || todayStr(),
-      responsibleUser: item.responsibleUser || user?.id || 0,
-    };
-  }
-
-  function getChange(item: Item): ItemChange {
-    return changes[item.id] || initChange(item);
-  }
-
-  function updateChange(itemId: number, field: keyof ItemChange, value: string | number) {
-    setChanges((prev) => {
-      const item = categories.flatMap((c) => c.items).find((i) => i.id === itemId);
-      if (!item) return prev;
-      const current = prev[itemId] || initChange(item);
-      return { ...prev, [itemId]: { ...current, [field]: value } };
-    });
-  }
-
-  function hasChanges(item: Item): boolean {
-    const c = changes[item.id];
-    if (!c) return false;
-    return (
-      c.currentQuantity !== item.currentQuantity ||
-      c.expiryDate !== (item.expiryDate || "") ||
-      c.countDate !== (item.countDate || todayStr()) ||
-      c.responsibleUser !== (item.responsibleUser || user?.id || 0)
-    );
-  }
-
-  const filteredItems = categories
-    .filter((cat) => filterCat === "all" || cat.id === filterCat)
-    .flatMap((cat) => cat.items)
-    .filter((item) => item.name.toLowerCase().includes(search.toLowerCase()));
-
-  function handleKeyDown(e: React.KeyboardEvent, itemId: number, field: string) {
-    if (e.key === "Tab" || e.key === "Enter") {
-      e.preventDefault();
-      const fields = ["currentQuantity", "expiryDate", "countDate", "responsibleUser"];
-      const currentIdx = fields.indexOf(field);
-      const nextField = fields[currentIdx + 1];
-      if (nextField) {
-        const nextInput = inputRefs.current[`${itemId}-${nextField}`];
-        nextInput?.focus();
-      } else {
-        const items = filteredItems;
-        const currentItemIdx = items.findIndex((i) => i.id === itemId);
-        const nextItem = items[currentItemIdx + 1];
-        if (nextItem) {
-          const nextInput = inputRefs.current[`${nextItem.id}-currentQuantity`];
-          nextInput?.focus();
-        }
-      }
+  useEffect(() => {
+    if (selectedItem) {
+      setQuantity(selectedItem.currentQuantity);
     }
-  }
+  }, [selectedItem]);
 
-  async function saveAll() {
-    setSaving(true);
-    const changedItems = Object.values(changes).filter((c) => {
-      const item = categories.flatMap((cat) => cat.items).find((i) => i.id === c.id);
-      return item && hasChanges(item);
-    });
-
-    if (changedItems.length === 0) {
-      toast.info("Nenhuma alteração para salvar");
-      setSaving(false);
+  const handleRegister = async () => {
+    if (!selectedItemId || !quantity) {
+      toast.error("Selecione um item e informe a quantidade.");
       return;
     }
-
-    let success = 0;
-    let errors = 0;
-
-    for (const change of changedItems) {
-      const res = await fetch(`/api/items/${change.id}`, {
+    const qty = parseFloat(quantity);
+    if (isNaN(qty) || qty < 0) {
+      toast.error("Quantidade inválida.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/items/${selectedItemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          currentQuantity: change.currentQuantity,
-          expiryDate: change.expiryDate || null,
-          countDate: change.countDate,
-          responsibleUser: change.responsibleUser,
+          currentQuantity: String(qty),
+          expiryDate: expiryDate || null,
+          countDate: new Date().toISOString().split("T")[0],
+          responsibleUser: user?.id || null,
         }),
       });
-      if (res.ok) success++;
-      else errors++;
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao registrar");
+      }
+      setSummary({ name: selectedItem!.name, total: 1, low: qty < minStock });
+      toast.success(`${selectedItem!.name} registrado com sucesso!`);
+      await loadData();
+      setQuantity("");
+      setExpiryDate("");
+      setSelectedItemId("");
+      setSelectedCatId("");
+    } catch (err: any) {
+      toast.error("Erro ao registrar: " + err.message);
+    } finally {
+      setSaving(false);
     }
+  };
 
-    if (errors === 0) {
-      toast.success(`${success} item(ns) atualizado(s) com sucesso!`);
-    } else {
-      toast.error(`${success} salvo(s), ${errors} erro(s)`);
-    }
-
-    setChanges({});
-    loadData();
-    setSaving(false);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-[#2563eb]" />
+      </div>
+    );
   }
 
-  function discardAll() {
-    setChanges({});
-    toast.info("Alterações descartadas");
-  }
+  const status = selectedItem ? getStockStatus(currentStock, minStock) : null;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <header>
         <h1 className="text-2xl font-bold text-[#0f172a]">Preenchimento de Estoque</h1>
-        <div className="flex gap-2">
+        <p className="text-[#64748b] text-sm mt-1">Registre contagens, entradas e data de vencimento dos itens.</p>
+      </header>
+
+      {/* Summary Banner */}
+      {summary && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+          <p className="text-sm font-medium text-[#0f172a]">
+            <strong>{summary.name}</strong> registrado com sucesso.
+            {summary.low && (
+              <span className="text-amber-600 ml-2 inline-flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Abaixo do estoque mínimo.
+              </span>
+            )}
+          </p>
           <button
-            onClick={discardAll}
-            className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] text-[#64748b] rounded-lg hover:bg-[#f1f5f9] transition-colors text-sm font-medium"
+            onClick={() => setSummary(null)}
+            className="ml-auto text-xs font-medium text-[#64748b] hover:text-[#0f172a] px-2 py-1 rounded hover:bg-white/50 transition-colors"
           >
-            <X className="w-4 h-4" /> Descartar
+            OK
           </button>
-          <button
-            onClick={saveAll}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-[#16a34a] text-white rounded-lg hover:bg-[#15803d] transition-colors text-sm font-medium disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar"}
-          </button>
-        </div>
-      </div>
-
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748b]" />
-          <input
-            type="text"
-            placeholder="Buscar produtos..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent"
-          />
-        </div>
-        <select
-          value={filterCat}
-          onChange={(e) => setFilterCat(e.target.value === "all" ? "all" : Number(e.target.value))}
-          className="px-3 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-        >
-          <option value="all">Todas as categorias</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#f8fafc] text-[#64748b] text-left">
-                <th className="px-4 py-3 font-medium">Produto</th>
-                <th className="px-4 py-3 font-medium">Unidade</th>
-                <th className="px-4 py-3 font-medium">Est. Mín</th>
-                <th className="px-4 py-3 font-medium">Qtd Atual</th>
-                <th className="px-4 py-3 font-medium">Data</th>
-                <th className="px-4 py-3 font-medium">Validade</th>
-                <th className="px-4 py-3 font-medium">Responsável</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map((item) => {
-                const change = getChange(item);
-                const modified = hasChanges(item);
-                return (
-                  <tr
-                    key={item.id}
-                    className={`border-t border-[#e2e8f0] hover:bg-[#f8fafc] ${
-                      modified ? "bg-blue-50" : ""
-                    }`}
-                  >
-                    <td className="px-4 py-2.5 font-medium text-[#0f172a]">{item.name}</td>
-                    <td className="px-4 py-2.5 text-[#64748b]">{item.unit}</td>
-                    <td className="px-4 py-2.5 text-[#64748b]">{item.minStock}</td>
-                    <td className="px-4 py-2.5">
-                      <input
-                        ref={(el) => { inputRefs.current[`${item.id}-currentQuantity`] = el; }}
-                        type="number"
-                        step="0.01"
-                        value={change.currentQuantity}
-                        onChange={(e) => updateChange(item.id, "currentQuantity", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, item.id, "currentQuantity")}
-                        className={`w-20 px-2 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb] ${
-                          Number(change.currentQuantity) < Number(item.minStock)
-                            ? "border-yellow-400 bg-yellow-50"
-                            : "border-[#e2e8f0]"
-                        }`}
-                      />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <input
-                        ref={(el) => { inputRefs.current[`${item.id}-countDate`] = el; }}
-                        type="date"
-                        value={change.countDate}
-                        onChange={(e) => updateChange(item.id, "countDate", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, item.id, "countDate")}
-                        className="w-36 px-2 py-1.5 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                      />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <input
-                        ref={(el) => { inputRefs.current[`${item.id}-expiryDate`] = el; }}
-                        type="date"
-                        value={change.expiryDate}
-                        onChange={(e) => updateChange(item.id, "expiryDate", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, item.id, "expiryDate")}
-                        className="w-36 px-2 py-1.5 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                      />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <select
-                        ref={(el) => { inputRefs.current[`${item.id}-responsibleUser`] = el; }}
-                        value={change.responsibleUser}
-                        onChange={(e) => updateChange(item.id, "responsibleUser", Number(e.target.value))}
-                        onKeyDown={(e) => handleKeyDown(e, item.id, "responsibleUser")}
-                        className="px-2 py-1.5 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                      >
-                        <option value={0}>Selecione</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {filteredItems.length === 0 && (
-          <div className="text-center py-12 text-[#64748b]">
-            Nenhum item encontrado
-          </div>
-        )}
-      </div>
-
-      {Object.keys(changes).length > 0 && (
-        <div className="mt-4 text-sm text-[#64748b]">
-          {Object.values(changes).filter((c) => {
-            const item = categories.flatMap((cat) => cat.items).find((i) => i.id === c.id);
-            return item && hasChanges(item);
-          }).length} item(ns) modificado(s)
         </div>
       )}
+
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ─── MAIN CARD: Registrar Estoque ─── */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-[#2563eb]/10 flex items-center justify-center">
+              <Package className="h-5 w-5 text-[#2563eb]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-[#0f172a]">Registrar Estoque</h2>
+              <p className="text-sm text-[#64748b]">Selecione o item e informe a quantidade atual</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Categoria */}
+            <div>
+              <label className="block text-xs font-medium text-[#475569] mb-1.5">Categoria</label>
+              <select
+                value={selectedCatId}
+                onChange={(e) => { setSelectedCatId(e.target.value ? Number(e.target.value) : ""); setSelectedItemId(""); }}
+                className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent"
+              >
+                <option value="">Selecione a categoria</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Item */}
+            <div>
+              <label className="block text-xs font-medium text-[#475569] mb-1.5">Item</label>
+              <select
+                value={selectedItemId}
+                onChange={(e) => setSelectedItemId(e.target.value ? Number(e.target.value) : "")}
+                disabled={!selectedCatId}
+                className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent disabled:bg-[#f8fafc] disabled:text-[#94a3b8]"
+              >
+                <option value="">{selectedCatId ? "Selecione o item" : "Escolha uma categoria primeiro"}</option>
+                {filteredItems.map((i) => (
+                  <option key={i.id} value={i.id}>{i.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Quantidade + Unidade */}
+            <div>
+              <label className="block text-xs font-medium text-[#475569] mb-1.5">Quantidade</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  disabled={!selectedItemId}
+                  className="flex-1 px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent disabled:bg-[#f8fafc] disabled:text-[#94a3b8]"
+                />
+                <div className="w-20 shrink-0">
+                  <select
+                    value={selectedItem?.unit || "un"}
+                    disabled
+                    className="w-full px-2 py-2 border border-[#e2e8f0] rounded-lg text-sm bg-[#f8fafc] text-[#64748b] cursor-not-allowed"
+                  >
+                    <option value={selectedItem?.unit || "un"}>{selectedItem?.unit || "un"}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Data de Vencimento */}
+            <div>
+              <label className="block text-xs font-medium text-[#475569] mb-1.5">
+                Data de Vencimento <span className="text-[#94a3b8] font-normal">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                disabled={!selectedItemId}
+                className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent disabled:bg-[#f8fafc] disabled:text-[#94a3b8]"
+              />
+              <p className="text-xs text-[#94a3b8] mt-1">Deixe em branco se o item não tem data de vencimento.</p>
+            </div>
+          </div>
+
+          {/* Registrar Button */}
+          <button
+            onClick={handleRegister}
+            disabled={!selectedItemId || !quantity || saving}
+            className="w-full h-11 rounded-lg font-bold text-sm text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            {saving ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Save className="h-5 w-5" />
+            )}
+            Registrar Estoque
+          </button>
+        </div>
+
+        {/* ─── RIGHT SIDE CARDS ─── */}
+        <div className="space-y-4">
+
+          {/* Card: Informações do Item */}
+          <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Box className="h-4 w-4 text-[#2563eb]" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#64748b]">Informações do Item</h3>
+            </div>
+            {selectedItem ? (
+              <div className="space-y-2.5">
+                <div>
+                  <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Nome</p>
+                  <p className="text-sm font-semibold text-[#0f172a]">{selectedItem.name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Unidade</p>
+                    <p className="text-sm font-semibold text-[#0f172a]">{selectedItem.unit}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Est. Mínimo</p>
+                    <p className="text-sm font-semibold text-[#0f172a]">{minStock}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Valor Unidade</p>
+                  <p className="text-sm font-semibold text-[#0f172a]">
+                    {selectedItem.unitPrice && Number(selectedItem.unitPrice) > 0
+                      ? Number(selectedItem.unitPrice).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      : "Não preenchido"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">Estoque Atual</p>
+                  <p className={`text-2xl font-bold tabular-nums ${
+                    currentStock <= 0 ? "text-red-600" : currentStock < minStock ? "text-amber-600" : "text-emerald-600"
+                  }`}>
+                    {currentStock}
+                  </p>
+                </div>
+                {status && (
+                  <div>
+                    <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider mb-1">Status</p>
+                    <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${status.color}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-[#94a3b8] italic">Nenhum item selecionado.</p>
+            )}
+          </div>
+
+          {/* Card: Responsável */}
+          <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-[#2563eb]" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#64748b]">Responsável</h3>
+            </div>
+            <p className="text-sm font-semibold text-[#0f172a]">{user?.name || user?.email || "—"}</p>
+            {user?.role && (
+              <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">{user.role === "admin" ? "Administrador" : "Funcionário"}</p>
+            )}
+          </div>
+
+          {/* Card: Dicas Importantes */}
+          <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#64748b]">Dicas Importantes</h3>
+            </div>
+            <ul className="space-y-2.5">
+              <li className="flex gap-2 text-xs text-[#64748b]">
+                <span className="text-[#2563eb] shrink-0 mt-0.5">•</span>
+                <span>Confira sempre a unidade de medida antes de inserir a quantidade.</span>
+              </li>
+              <li className="flex gap-2 text-xs text-[#64748b]">
+                <span className="text-[#2563eb] shrink-0 mt-0.5">•</span>
+                <span>A data de vencimento é opcional, mas é recomendada para controle de qualidade e segurança.</span>
+              </li>
+              <li className="flex gap-2 text-xs text-[#64748b]">
+                <span className="text-[#2563eb] shrink-0 mt-0.5">•</span>
+                <span>Este registro substituirá o registro atual do item — o valor anterior será sobrescrito.</span>
+              </li>
+              <li className="flex gap-2 text-xs text-[#64748b]">
+                <span className="text-[#2563eb] shrink-0 mt-0.5">•</span>
+                <span>Se o item não aparecer na lista, cadastre-o primeiro na página "Gestão de Estoque".</span>
+              </li>
+              <li className="flex gap-2 text-xs text-[#64748b]">
+                <span className="text-[#2563eb] shrink-0 mt-0.5">•</span>
+                <span>Itens com quantidade abaixo do mínimo serão destacados como "Baixo" no painel principal.</span>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }

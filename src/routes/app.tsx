@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useNavigate, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useMemo } from "react";
-import { LogOut, ClipboardList, Users, LayoutDashboard, ChefHat, Bell } from "lucide-react";
+import { LogOut, ClipboardList, Users, LayoutDashboard, ChefHat, Bell, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -39,8 +39,9 @@ function AppLayout() {
     );
   }
 
-  const navItems = [
-    { label: "Gestão", icon: LayoutDashboard, to: "/app/gestao" },
+	const navItems = [
+    { label: "Dashboard", icon: LayoutDashboard, to: "/app/dashboard" },
+    { label: "Gestão de Estoque", icon: Package, to: "/app/gestao" },
     { label: "Preenchimento", icon: ClipboardList, to: "/app/preenchimento" },
     { label: "Usuários", icon: Users, to: "/app/admin" },
   ];

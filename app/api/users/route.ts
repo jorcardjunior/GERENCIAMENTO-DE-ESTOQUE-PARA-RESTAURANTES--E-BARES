@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { normalizeName } from "@/lib/validation";
 
 export async function GET() {
   const session = await getSession();
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }
 
-  const { name, email, password, role } = await request.json();
+  let { name, email, password, role } = await request.json();
+  name = normalizeName(name);
   if (!name || !email || !password) {
     return NextResponse.json(
       { error: "Nome, email e senha são obrigatórios" },
