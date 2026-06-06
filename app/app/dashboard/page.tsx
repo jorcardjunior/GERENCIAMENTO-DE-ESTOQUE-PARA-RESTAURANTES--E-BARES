@@ -361,7 +361,93 @@ export default function DashboardPage() {
 				))}
 			</div>
 
+			{/* ─── CHARTS SECTION ─── */}
+			{categories.length > 0 && (
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					{/* Bar Chart: Items per Category */}
+					<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg p-6">
+						<h3 className="text-sm font-black uppercase tracking-wider text-[#0f172a] mb-4">Itens por Categoria</h3>
+						<div className="space-y-3">
+							{categories.map((cat) => {
+								const max = Math.max(...categories.map((c) => c.items.length), 1);
+								const pct = (cat.items.length / max) * 100;
+								return (
+									<div key={cat.id} className="flex items-center gap-3">
+										<span className="text-xs font-bold text-[#64748b] w-32 truncate shrink-0">{cat.name}</span>
+										<div className="flex-1 h-5 bg-[#f1f5f9] rounded-full overflow-hidden">
+											<div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: cat.color }} />
+										</div>
+										<span className="text-xs font-black tabular-nums text-[#0f172a] w-8 text-right shrink-0">{cat.items.length}</span>
+									</div>
+								);
+							})}
+						</div>
+					</div>
 
+					{/* Donut Chart: Stock Status Distribution */}
+					<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg p-6">
+						<h3 className="text-sm font-black uppercase tracking-wider text-[#0f172a] mb-4">Distribuição do Estoque</h3>
+						<div className="flex items-center justify-center gap-8">
+							<svg width="160" height="160" viewBox="0 0 160 160" className="shrink-0">
+								{(() => {
+									const total = allItems.length || 1;
+									const saudavel = allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate)).length;
+									const baixo = allItems.filter((i) => isLowStock(i) && !isExpiringSoon(i.expiryDate)).length;
+									const vencendo = allItems.filter((i) => isExpiringSoon(i.expiryDate)).length;
+									const critical = allItems.filter((i) => isStockCritical(i)).length;
+									const slices = [
+										{ value: saudavel, color: "#16a34a", label: "Saudável" },
+										{ value: baixo, color: "#ca8a04", label: "Baixo" },
+										{ value: vencendo, color: "#e11d48", label: "Vencendo" },
+										{ value: critical, color: "#dc2626", label: "Crítico" },
+									].filter((s) => s.value > 0);
+									let cumulative = 0;
+									const radius = 70;
+									const cx = 80;
+									const cy = 80;
+									return slices.map((slice, i) => {
+										const pct = slice.value / total;
+										const angle = pct * 360;
+										const startAngle = (cumulative / total) * 360;
+										cumulative += slice.value;
+										const startRad = ((startAngle - 90) * Math.PI) / 180;
+										const endRad = ((startAngle + angle - 90) * Math.PI) / 180;
+										const x1 = cx + radius * Math.cos(startRad);
+										const y1 = cy + radius * Math.sin(startRad);
+										const x2 = cx + radius * Math.cos(endRad);
+										const y2 = cy + radius * Math.sin(endRad);
+										const largeArc = angle > 180 ? 1 : 0;
+										if (pct >= 1) {
+											return <circle key={i} cx={cx} cy={cy} r={radius} fill={slice.color} />;
+										}
+										return (
+											<path key={i} d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={slice.color} />
+										);
+									});
+								})()}
+								<circle cx="80" cy="80" r="45" fill="white" />
+								<text x="80" y="80" textAnchor="middle" dominantBaseline="middle" className="text-sm font-black" fill="#0f172a">
+									{allItems.length}
+								</text>
+							</svg>
+							<div className="space-y-2">
+								{[
+									{ label: "Saudável", color: "#16a34a", count: allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate)).length },
+									{ label: "Baixo", color: "#ca8a04", count: allItems.filter((i) => isLowStock(i) && !isExpiringSoon(i.expiryDate)).length },
+									{ label: "Vencendo", color: "#e11d48", count: allItems.filter((i) => isExpiringSoon(i.expiryDate)).length },
+									{ label: "Crítico", color: "#dc2626", count: allItems.filter((i) => isStockCritical(i)).length },
+								].map((s) => (
+									<div key={s.label} className="flex items-center gap-2">
+										<div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+										<span className="text-xs text-[#64748b]">{s.label}</span>
+										<span className="text-xs font-black tabular-nums text-[#0f172a]">{s.count}</span>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* ─── ALERT DETAILS ─── */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -18,6 +18,7 @@ import {
 	Clock,
 	Layers,
 	Package,
+	Pencil,
 	Plus,
 	Search,
 	Settings2,
@@ -37,6 +38,7 @@ type Item = {
 	unitPrice: string | null;
 	countDate: string | null;
 	expiryDate: string | null;
+	categoryId?: number | null;
 	responsibleUser: number | null;
 	responsible: Responsible;
 };
@@ -159,6 +161,13 @@ export default function GestaoPage() {
 	} | null>(null);
 
 	const [showColumnModal, setShowColumnModal] = useState(false);
+
+	const [editItem, setEditItem] = useState<Item | null>(null);
+	const [showEditItem, setShowEditItem] = useState(false);
+	const [editCat, setEditCat] = useState<{ id: number; name: string; color: string } | null>(null);
+	const [showEditCat, setShowEditCat] = useState(false);
+	const [editCatName, setEditCatName] = useState("");
+	const [editCatColor, setEditCatColor] = useState(CATEGORY_COLORS[0]);
 
 	const [customColumns, setCustomColumns] = useState<{ id: string; name: string }[]>(() => {
 		if (typeof window === "undefined") return [];
@@ -430,6 +439,73 @@ export default function GestaoPage() {
 		loadData();
 	}
 
+	async function startEditItem(item: Item) {
+		setEditItem(item);
+		setNewItem({
+			categoryId: item.categoryId || null,
+			name: item.name,
+			unit: item.unit,
+			minStock: item.minStock,
+			currentQuantity: item.currentQuantity,
+			unitPrice: item.unitPrice || "",
+		});
+		setShowEditItem(true);
+	}
+
+	async function saveEditItem() {
+		if (!editItem) return;
+		const name = normalizeItemName(newItem.name);
+		if (!name) { toast.error("Digite um nome válido"); return; }
+		const res = await fetch(`/api/items/${editItem.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name,
+				unit: newItem.unit,
+				minStock: newItem.minStock,
+				currentQuantity: newItem.currentQuantity,
+				unitPrice: newItem.unitPrice || null,
+			}),
+		});
+		if (res.ok) {
+			toast.success("Item atualizado");
+			setShowEditItem(false);
+			setEditItem(null);
+			setNewItem({ categoryId: null, name: "", unit: "kg", minStock: "0", currentQuantity: "0", unitPrice: "" });
+			loadData();
+		} else {
+			const data = await res.json();
+			toast.error(data.error || "Erro ao atualizar");
+		}
+	}
+
+	function startEditCategory(cat: Category) {
+		setEditCat({ id: cat.id, name: cat.name, color: cat.color });
+		setEditCatName(cat.name);
+		setEditCatColor(cat.color);
+		setShowEditCat(true);
+	}
+
+	async function saveEditCategory() {
+		if (!editCat) return;
+		const name = normalizeCategoryName(editCatName);
+		if (!name) { toast.error("Digite um nome válido"); return; }
+		const res = await fetch(`/api/categories/${editCat.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name, color: editCatColor }),
+		});
+		if (res.ok) {
+			toast.success("Categoria atualizada");
+			setShowEditCat(false);
+			setEditCat(null);
+			loadData();
+		} else {
+			const data = await res.json();
+			toast.error(data.error || "Erro ao atualizar");
+		}
+	}
+
 	const formatCurrency = (val: number) =>
 		val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -684,6 +760,88 @@ export default function GestaoPage() {
 				</div>
 			)}
 
+			{/* ─── EDIT ITEM MODAL ─── */}
+			{showEditItem && editItem && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowEditItem(false); setEditItem(null); }} />
+					<div className="relative bg-white rounded-2xl shadow-2xl border-2 border-[#e2e8f0] w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+						<div className="flex items-center justify-between mb-6">
+							<h2 className="text-lg font-black uppercase tracking-tight text-[#0f172a]">Editar Item</h2>
+							<button onClick={() => { setShowEditItem(false); setEditItem(null); }}
+								className="p-1.5 rounded-lg hover:bg-[#f1f5f9] text-[#64748b] transition-colors">
+								<X className="w-5 h-5" />
+							</button>
+						</div>
+						<div className="space-y-4">
+							<div className="relative">
+								<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Categoria</label>
+								<select
+									value={newItem.categoryId ?? ""}
+									onChange={(e) => setNewItem({ ...newItem, categoryId: Number(e.target.value) || null })}
+									className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+								>
+									<option value="">Selecione categoria</option>
+									{categories.map((cat) => (
+										<option key={cat.id} value={cat.id}>{cat.name}</option>
+									))}
+								</select>
+							</div>
+							<div>
+								<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Nome do Item</label>
+								<input type="text" value={newItem.name}
+									onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+									className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+								/>
+							</div>
+							<div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+								<div>
+									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Qtd. Atual</label>
+									<input type="number" value={newItem.currentQuantity}
+										onChange={(e) => setNewItem({ ...newItem, currentQuantity: e.target.value })}
+										className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+									/>
+								</div>
+								<div>
+									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Unidade</label>
+									<select value={newItem.unit}
+										onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+										className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+									>
+										{KNOWN_UNITS.map((u) => (
+											<option key={u} value={u}>{u} - {UNIT_LABELS[u]}</option>
+										))}
+									</select>
+								</div>
+								<div>
+									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Est. Mínimo</label>
+									<input type="number" value={newItem.minStock}
+										onChange={(e) => setNewItem({ ...newItem, minStock: e.target.value })}
+										className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+									/>
+								</div>
+								<div>
+									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Valor Un. (R$) <span className="text-[#94a3b8]">(opcional)</span></label>
+									<input type="number" step="0.01" min="0" value={newItem.unitPrice}
+										onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+										className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+									/>
+								</div>
+							</div>
+						</div>
+						<div className="flex gap-3 mt-6 pt-4 border-t border-[#e2e8f0]">
+							<button onClick={saveEditItem}
+								className="flex-1 px-4 py-3 bg-[#2563eb] text-white rounded-xl hover:bg-[#1d4ed8] transition-all text-sm font-bold shadow-lg shadow-blue-500/20">
+								Salvar Alterações
+							</button>
+							<button onClick={() => { setShowEditItem(false); setEditItem(null); }}
+								className="px-6 py-3 bg-[#f1f5f9] text-[#64748b] rounded-xl hover:bg-[#e2e8f0] transition-all text-sm font-medium">
+								Cancelar
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* ─── CATEGORY MODAL ─── */}
 			{showNewCat && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -790,6 +948,50 @@ export default function GestaoPage() {
 				</div>
 			)}
 
+			{/* ─── EDIT CATEGORY MODAL ─── */}
+			{showEditCat && editCat && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowEditCat(false); setEditCat(null); }} />
+					<div className="relative bg-white rounded-2xl shadow-2xl border-2 border-[#e2e8f0] w-full max-w-lg p-6">
+						<div className="flex items-center justify-between mb-6">
+							<h2 className="text-lg font-black uppercase tracking-tight text-[#0f172a]">Editar Categoria</h2>
+							<button onClick={() => { setShowEditCat(false); setEditCat(null); }}
+								className="p-1.5 rounded-lg hover:bg-[#f1f5f9] text-[#64748b] transition-colors">
+								<X className="w-5 h-5" />
+							</button>
+						</div>
+						<div>
+							<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Nome da Categoria</label>
+							<input type="text" value={editCatName}
+								onChange={(e) => setEditCatName(e.target.value)}
+								className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
+							/>
+						</div>
+						<div className="mt-4">
+							<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-2">Cor da Categoria</label>
+							<div className="flex gap-2.5 flex-wrap">
+								{CATEGORY_COLORS.map((c) => (
+									<button key={c} type="button" onClick={() => setEditCatColor(c)}
+										className={`h-7 w-7 rounded-full transition-all duration-200 ${editCatColor === c ? "ring-2 ring-offset-2 ring-[#0f172a] scale-110" : "hover:scale-110"}`}
+										style={{ backgroundColor: c }} title={c} />
+								))}
+							</div>
+						</div>
+						<div className="flex gap-3 mt-6 pt-4 border-t border-[#e2e8f0]">
+							<button onClick={saveEditCategory}
+								className="flex-1 px-4 py-3 text-white rounded-xl hover:brightness-110 transition-all text-sm font-bold shadow-lg"
+								style={{ backgroundColor: editCatColor }}>
+								Salvar Categoria
+							</button>
+							<button onClick={() => { setShowEditCat(false); setEditCat(null); }}
+								className="px-6 py-3 bg-[#f1f5f9] text-[#64748b] rounded-xl hover:bg-[#e2e8f0] transition-all text-sm font-medium">
+								Cancelar
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* Categorias com suas tabelas */}
 			{allItems.length === 0 ? (
 				<div className="text-center py-20 max-w-md mx-auto">
@@ -822,13 +1024,22 @@ export default function GestaoPage() {
 										</span>
 									</div>
 									{isAdmin && (
-										<button
-											onClick={() => deleteCategory(cat.id)}
-											className="p-1.5 text-[#dc2626] hover:bg-red-50 rounded-lg transition-colors"
-											title="Excluir categoria"
-										>
-											<Trash2 className="w-4 h-4" />
-										</button>
+										<div className="flex items-center gap-1">
+											<button
+												onClick={() => startEditCategory(cat)}
+												className="p-1.5 text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors"
+												title="Editar categoria"
+											>
+												<Pencil className="w-4 h-4" />
+											</button>
+											<button
+												onClick={() => deleteCategory(cat.id)}
+												className="p-1.5 text-[#dc2626] hover:bg-red-50 rounded-lg transition-colors"
+												title="Excluir categoria"
+											>
+												<Trash2 className="w-4 h-4" />
+											</button>
+										</div>
 									)}
 								</div>
 
@@ -934,7 +1145,10 @@ export default function GestaoPage() {
 																</td>
 															))}
 															{isAdmin && visibleColumns.includes("acoes") && (
-																<td className="p-4 text-right">
+																<td className="p-4 text-right whitespace-nowrap">
+																	<button onClick={() => startEditItem(item)} className="p-1.5 text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors mr-1" title="Editar item">
+																		<Pencil className="w-4 h-4" />
+																	</button>
 																	<button onClick={() => deleteItem(item.id)} className="p-1.5 text-[#dc2626] hover:bg-red-50 rounded-lg transition-colors" title="Excluir item">
 																		<Trash2 className="w-4 h-4" />
 																	</button>

@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import bcrypt from "bcryptjs";
 
-const sql = postgres("postgresql://postgres:estoque123@localhost:5432/estoque");
+const sql = postgres(process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:54322/postgres");
 
 const adminHash = bcrypt.hashSync("admin", 10);
 const staffHash = bcrypt.hashSync("staff", 10);

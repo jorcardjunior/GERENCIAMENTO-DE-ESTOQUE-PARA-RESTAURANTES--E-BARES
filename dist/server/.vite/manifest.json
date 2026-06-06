@@ -1,0 +1,253 @@
+{
+  "%23tanstack-start-plugin-adapters": {
+    "file": "assets/__23tanstack-start-plugin-adapters-Cwee5PKy.js",
+    "name": "__23tanstack-start-plugin-adapters",
+    "src": "%23tanstack-start-plugin-adapters",
+    "isDynamicEntry": true
+  },
+  "C:/Users/JORGE CARDOSO JR/Downloads/GERENCIAMENTO DE ESTOQUE PARA RESTAURANTES  E BARES/src/styles.css": {
+    "file": "assets/styles-CMPG8Dw8.css",
+    "src": "C:/Users/JORGE CARDOSO JR/Downloads/GERENCIAMENTO DE ESTOQUE PARA RESTAURANTES  E BARES/src/styles.css"
+  },
+  "_button--0oIo6hY.js": {
+    "file": "assets/button--0oIo6hY.js",
+    "name": "button",
+    "imports": [
+      "_server-BSs7-SCa.js"
+    ]
+  },
+  "_card-C-SD-ZTO.js": {
+    "file": "assets/card-C-SD-ZTO.js",
+    "name": "card",
+    "imports": [
+      "_button--0oIo6hY.js",
+      "_server-BSs7-SCa.js"
+    ]
+  },
+  "_chef-hat-BU22Lb7H.js": {
+    "file": "assets/chef-hat-BU22Lb7H.js",
+    "name": "chef-hat",
+    "imports": [
+      "_button--0oIo6hY.js"
+    ]
+  },
+  "_dialog-DUOD8Z6G.js": {
+    "file": "assets/dialog-DUOD8Z6G.js",
+    "name": "dialog",
+    "imports": [
+      "_button--0oIo6hY.js",
+      "_server-BSs7-SCa.js",
+      "_select-BTzJGDMj.js"
+    ]
+  },
+  "_format-loR1gyOG.js": {
+    "file": "assets/format-loR1gyOG.js",
+    "name": "format",
+    "imports": [
+      "_button--0oIo6hY.js"
+    ]
+  },
+  "_input-GxBtchu_.js": {
+    "file": "assets/input-GxBtchu_.js",
+    "name": "input",
+    "imports": [
+      "_button--0oIo6hY.js",
+      "_server-BSs7-SCa.js"
+    ]
+  },
+  "_label-kzEb_JdA.js": {
+    "file": "assets/label-kzEb_JdA.js",
+    "name": "label",
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js"
+    ]
+  },
+  "_proxy-DCe6fuxN.js": {
+    "file": "assets/proxy-DCe6fuxN.js",
+    "name": "proxy",
+    "imports": [
+      "_server-BSs7-SCa.js"
+    ]
+  },
+  "_router-BhzvWMaL.js": {
+    "file": "assets/router-BhzvWMaL.js",
+    "name": "router",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js"
+    ],
+    "dynamicImports": [
+      "src/routes/app.tsx?tsr-split=component",
+      "src/routes/app/index.tsx?tsr-split=component",
+      "src/routes/auth/register.tsx?tsr-split=component",
+      "src/routes/auth/login.tsx?tsr-split=component",
+      "src/routes/app/preenchimento.tsx?tsr-split=component",
+      "src/routes/app/gestao.tsx?tsr-split=component",
+      "src/routes/app/admin/index.tsx?tsr-split=component"
+    ],
+    "assets": [
+      "assets/styles-CMPG8Dw8.css"
+    ]
+  },
+  "_select-BTzJGDMj.js": {
+    "file": "assets/select-BTzJGDMj.js",
+    "name": "select",
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js"
+    ]
+  },
+  "_server-BSs7-SCa.js": {
+    "file": "assets/server-BSs7-SCa.js",
+    "name": "server",
+    "isDynamicEntry": true,
+    "dynamicImports": [
+      "tanstack-start-manifest:v",
+      "_router-BhzvWMaL.js",
+      "src/start.ts",
+      "%23tanstack-start-plugin-adapters"
+    ]
+  },
+  "_user-plus-RhE7KvaD.js": {
+    "file": "assets/user-plus-RhE7KvaD.js",
+    "name": "user-plus",
+    "imports": [
+      "_button--0oIo6hY.js"
+    ]
+  },
+  "_worker-entry-Be-_lHPH.js": {
+    "file": "assets/worker-entry-Be-_lHPH.js",
+    "name": "worker-entry",
+    "dynamicImports": [
+      "_server-BSs7-SCa.js"
+    ]
+  },
+  "src/routes/app.tsx?tsr-split=component": {
+    "file": "assets/app-jo582F9e.js",
+    "name": "app",
+    "src": "src/routes/app.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js",
+      "_chef-hat-BU22Lb7H.js",
+      "_proxy-DCe6fuxN.js"
+    ]
+  },
+  "src/routes/app/admin/index.tsx?tsr-split=component": {
+    "file": "assets/index-DRyUgmSu.js",
+    "name": "index",
+    "src": "src/routes/app/admin/index.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js",
+      "_input-GxBtchu_.js",
+      "_label-kzEb_JdA.js",
+      "_dialog-DUOD8Z6G.js",
+      "_select-BTzJGDMj.js",
+      "_user-plus-RhE7KvaD.js"
+    ]
+  },
+  "src/routes/app/gestao.tsx?tsr-split=component": {
+    "file": "assets/gestao-CYKZoYdt.js",
+    "name": "gestao",
+    "src": "src/routes/app/gestao.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js",
+      "_input-GxBtchu_.js",
+      "_label-kzEb_JdA.js",
+      "_dialog-DUOD8Z6G.js",
+      "_select-BTzJGDMj.js",
+      "_format-loR1gyOG.js",
+      "_proxy-DCe6fuxN.js"
+    ]
+  },
+  "src/routes/app/index.tsx?tsr-split=component": {
+    "file": "assets/index-qjTgju4u.js",
+    "name": "index",
+    "src": "src/routes/app/index.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_router-BhzvWMaL.js",
+      "_server-BSs7-SCa.js"
+    ]
+  },
+  "src/routes/app/preenchimento.tsx?tsr-split=component": {
+    "file": "assets/preenchimento-BplLmlht.js",
+    "name": "preenchimento",
+    "src": "src/routes/app/preenchimento.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js",
+      "_input-GxBtchu_.js",
+      "_select-BTzJGDMj.js",
+      "_format-loR1gyOG.js"
+    ]
+  },
+  "src/routes/auth/login.tsx?tsr-split=component": {
+    "file": "assets/login-BqFg-77F.js",
+    "name": "login",
+    "src": "src/routes/auth/login.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js",
+      "_input-GxBtchu_.js",
+      "_label-kzEb_JdA.js",
+      "_card-C-SD-ZTO.js",
+      "_chef-hat-BU22Lb7H.js"
+    ]
+  },
+  "src/routes/auth/register.tsx?tsr-split=component": {
+    "file": "assets/register-DdhCohLR.js",
+    "name": "register",
+    "src": "src/routes/auth/register.tsx?tsr-split=component",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_router-BhzvWMaL.js",
+      "_button--0oIo6hY.js",
+      "_input-GxBtchu_.js",
+      "_label-kzEb_JdA.js",
+      "_card-C-SD-ZTO.js",
+      "_user-plus-RhE7KvaD.js"
+    ]
+  },
+  "src/start.ts": {
+    "file": "assets/start-DNUSPDBb.js",
+    "name": "start",
+    "src": "src/start.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-BSs7-SCa.js",
+      "_worker-entry-Be-_lHPH.js"
+    ]
+  },
+  "tanstack-start-manifest:v": {
+    "file": "assets/_tanstack-start-manifest_v-DKRurRO5.js",
+    "name": "_tanstack-start-manifest_v",
+    "src": "tanstack-start-manifest:v",
+    "isDynamicEntry": true
+  },
+  "virtual:cloudflare/worker-entry": {
+    "file": "index.js",
+    "name": "index",
+    "src": "virtual:cloudflare/worker-entry",
+    "isEntry": true,
+    "imports": [
+      "_worker-entry-Be-_lHPH.js"
+    ]
+  }
+}

@@ -8,4 +8,3 @@ pnpm-debug.log*
 lerna-debug.log*
 
 .gitignore content updated with new entries and .next/
-node_modules
