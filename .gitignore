@@ -7,5 +7,35 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-.gitignore content updated with new entries and .next/
-node_modules
+# Next.js
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+cookies.txt
+*.swp
+*.swo
+
+# Misc
+.history/
+.tanstack/
+.wrangler/
+nul

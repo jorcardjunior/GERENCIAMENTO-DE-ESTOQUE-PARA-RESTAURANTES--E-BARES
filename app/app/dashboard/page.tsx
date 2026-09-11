@@ -1,46 +1,77 @@
 "use client";
 
+import { DonutChart, GaugeChart, Sparkline, calcVariacao, gerarTrend } from "@/components/charts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NeuCard } from "@/components/ui/neu-card";
+import { OnboardingGuide } from "@/components/ui/onboarding-guide";
 import { useAuth } from "@/hooks/use-auth";
+import { downloadCSV } from "@/lib/export-csv";
 import {
-	normalizeCategoryName,
-	normalizeItemName,
-	suggestCategories,
-	suggestItemCategory,
-	suggestItemCorrection,
-	suggestUnits,
-	validateItemCategory,
-	KNOWN_UNITS,
-	UNIT_LABELS,
+  KNOWN_UNITS,
+  UNIT_LABELS,
+  normalizeCategoryName,
+  normalizeItemName,
+  suggestCategories,
+  suggestItemCategory,
+  suggestItemCorrection,
+  suggestUnits,
+  validateItemCategory,
 } from "@/lib/validation";
 import {
-	AlertTriangle,
-	Box,
-	Clock,
-	Layers,
-	Package,
-	Plus,
-	X,
-	DollarSign,
+  AlertTriangle,
+  ArrowUpRight,
+  Clock,
+  DollarSign,
+  Download,
+  Layers,
+  Package,
+  PieChart,
+  Plus,
+  Sparkles,
+  TrendingDown,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  CartesianGrid,
+  Cell,
+  BarChart as RechartsBarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 
 type Responsible = { id: number; name: string } | null;
 type Item = {
-	id: number;
-	name: string;
-	unit: string;
-	minStock: string;
-	currentQuantity: string;
-	unitPrice: string | null;
-	countDate: string | null;
-	expiryDate: string | null;
-	responsibleUser: number | null;
-	responsible: Responsible;
+  id: number;
+  name: string;
+  unit: string;
+  minStock: string;
+  currentQuantity: string;
+  unitPrice: string | null;
+  countDate: string | null;
+  expiryDate: string | null;
+  responsibleUser: number | null;
+  responsible: Responsible;
 };
 const CATEGORY_COLORS = [
-  "#2563eb", "#dc2626", "#16a34a", "#ea580c", "#9333ea",
-  "#0d9488", "#ca8a04", "#db2777", "#0891b2", "#52525b",
+  "#2563eb",
+  "#dc2626",
+  "#16a34a",
+  "#ea580c",
+  "#9333ea",
+  "#0d9488",
+  "#ca8a04",
+  "#db2777",
+  "#0891b2",
+  "#52525b",
 ];
 
 type Category = {
@@ -50,745 +81,1444 @@ type Category = {
   items: Item[];
 };
 
-function AnimatedNumber({
-	value,
-	duration = 1500,
-}: { value: number; duration?: number }) {
-	const [display, setDisplay] = useState(0);
-	const started = useRef(false);
-	useEffect(() => {
-		started.current = false;
-		const timeout = setTimeout(() => {
-			started.current = true;
-			const startTime = performance.now();
-			const animate = (now: number) => {
-				const elapsed = now - startTime;
-				const progress = Math.min(elapsed / duration, 1);
-				const eased = 1 - (1 - progress) ** 3;
-				setDisplay(value * eased);
-				if (progress < 1) requestAnimationFrame(animate);
-				else setDisplay(value);
-			};
-			requestAnimationFrame(animate);
-		}, 100);
-		return () => clearTimeout(timeout);
-	}, [value, duration]);
-	return <>{Math.round(display).toLocaleString("pt-BR")}</>;
+function AnimatedNumber({ value, duration = 1500 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0);
+  const started = useRef(false);
+  useEffect(() => {
+    started.current = false;
+    const timeout = setTimeout(() => {
+      started.current = true;
+      const startTime = performance.now();
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - (1 - progress) ** 3;
+        setDisplay(value * eased);
+        if (progress < 1) requestAnimationFrame(animate);
+        else setDisplay(value);
+      };
+      requestAnimationFrame(animate);
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, [value, duration]);
+  return <>{Math.round(display).toLocaleString("pt-BR")}</>;
 }
 
 function formatDays(days: number): string {
-	if (days === 1) return "1 dia";
-	return `${days} dias`;
+  if (days === 1) return "1 dia";
+  return `${days} dias`;
 }
 
 function formatPct(pct: number): string {
-	return `${pct}%`;
+  return `${pct}%`;
 }
 
 export default function DashboardPage() {
-	const { user } = useAuth();
-	const isAdmin = user?.role === "admin";
+  const { user } = useAuth();
+  const _isAdmin = user?.role === "admin";
+  const router = useRouter();
 
-	const [categories, setCategories] = useState<Category[]>([]);
-	const [settings, setSettings] = useState({ alert_expiry_days: "7", alert_low_stock_pct: "10" });
-	const [showItemModal, setShowItemModal] = useState(false);
-	const [showCatModal, setShowCatModal] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [settings, setSettings] = useState({ alert_expiry_days: "7", alert_low_stock_pct: "10" });
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [showCatModal, setShowCatModal] = useState(false);
 
-	const [newCatName, setNewCatName] = useState("");
-	const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
-	const [catSuggestions, setCatSuggestions] = useState<string[]>([]);
-	const [catSuggestionIndex, setCatSuggestionIndex] = useState(-1);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
+  const [catSuggestions, setCatSuggestions] = useState<string[]>([]);
+  const [catSuggestionIndex, setCatSuggestionIndex] = useState(-1);
 
-	const [newItem, setNewItem] = useState({
-		categoryId: null as number | null,
-		name: "",
-		unit: "kg",
-		minStock: "0",
-		currentQuantity: "0",
-	});
-	const [itemSuggestion, setItemSuggestion] = useState<{ message: string; name: string } | null>(null);
-	const [unitSuggestion, setUnitSuggestion] = useState<{ units: string[] } | null>(null);
-	const [categorySuggestion, setCategorySuggestion] = useState<{ categoryId: number; categoryName: string } | null>(null);
+  const [newItem, setNewItem] = useState({
+    categoryId: null as number | null,
+    name: "",
+    unit: "kg",
+    minStock: "0",
+    currentQuantity: "0",
+  });
+  const [itemSuggestion, setItemSuggestion] = useState<{ message: string; name: string } | null>(
+    null,
+  );
+  const [_unitSuggestion, setUnitSuggestion] = useState<{ units: string[] } | null>(null);
+  const [categorySuggestion, setCategorySuggestion] = useState<{
+    categoryId: number;
+    categoryName: string;
+  } | null>(null);
 
-	const expiryDays = Number(settings.alert_expiry_days) || 7;
-	const lowStockPct = Number(settings.alert_low_stock_pct) || 10;
-	const lowStockMultiplier = 1 + lowStockPct / 100;
+  const expiryDays = Number(settings.alert_expiry_days) || 7;
+  const lowStockPct = Number(settings.alert_low_stock_pct) || 10;
+  const lowStockMultiplier = 1 + lowStockPct / 100;
 
-	const allItemNames = useMemo(
-		() => categories.flatMap((c) => c.items.map((i) => i.name)),
-		[categories],
-	);
+  const allItemNames = useMemo(
+    () => categories.flatMap((c) => c.items.map((i) => i.name)),
+    [categories],
+  );
 
-	useEffect(() => {
-		if (newItem.name.trim().length < 3) {
-			setItemSuggestion(null);
-			setUnitSuggestion(null);
-			setCategorySuggestion(null);
-			return;
-		}
-		const result = suggestItemCorrection(newItem.name, allItemNames);
-		if (result.hasSuggestion && result.normalized !== result.suggestions[0]) {
-			setItemSuggestion({ message: result.message ?? "", name: result.suggestions[0] });
-		} else {
-			setItemSuggestion(null);
-		}
-		const suggested = suggestUnits(newItem.name);
-		const filtered = suggested.filter((u) => u !== newItem.unit);
-		if (filtered.length > 0) {
-			setUnitSuggestion({ units: filtered });
-		} else {
-			setUnitSuggestion(null);
-		}
-		const suggestedCatName = suggestItemCategory(newItem.name);
-		if (suggestedCatName) {
-			const match = categories.find((c) => c.name === suggestedCatName);
-			if (match && match.id !== newItem.categoryId) {
-				setCategorySuggestion({ categoryId: match.id, categoryName: suggestedCatName });
-			} else {
-				setCategorySuggestion(null);
-			}
-		} else {
-			setCategorySuggestion(null);
-		}
-	}, [newItem.name, newItem.unit, newItem.categoryId, allItemNames, categories]);
+  useEffect(() => {
+    if (newItem.name.trim().length < 3) {
+      setItemSuggestion(null);
+      setUnitSuggestion(null);
+      setCategorySuggestion(null);
+      return;
+    }
+    const result = suggestItemCorrection(newItem.name, allItemNames);
+    if (result.hasSuggestion && result.normalized !== result.suggestions[0]) {
+      setItemSuggestion({ message: result.message ?? "", name: result.suggestions[0] });
+    } else {
+      setItemSuggestion(null);
+    }
+    const suggested = suggestUnits(newItem.name);
+    const filtered = suggested.filter((u) => u !== newItem.unit);
+    if (filtered.length > 0) {
+      setUnitSuggestion({ units: filtered });
+    } else {
+      setUnitSuggestion(null);
+    }
+    const suggestedCatName = suggestItemCategory(newItem.name);
+    if (suggestedCatName) {
+      const match = categories.find((c) => c.name === suggestedCatName);
+      if (match && match.id !== newItem.categoryId) {
+        setCategorySuggestion({ categoryId: match.id, categoryName: suggestedCatName });
+      } else {
+        setCategorySuggestion(null);
+      }
+    } else {
+      setCategorySuggestion(null);
+    }
+  }, [newItem.name, newItem.unit, newItem.categoryId, allItemNames, categories]);
 
-	const loadData = useCallback(async () => {
-		const [catRes, settingsRes] = await Promise.all([
-			fetch("/api/categories"),
-			fetch("/api/settings"),
-		]);
-		if (catRes.ok) setCategories(await catRes.json());
-		if (settingsRes.ok) setSettings(await settingsRes.json());
-	}, []);
+  const loadData = useCallback(async () => {
+    const [catRes, settingsRes] = await Promise.all([
+      fetch("/api/categories"),
+      fetch("/api/settings"),
+    ]);
+    if (catRes.ok) setCategories(await catRes.json());
+    if (settingsRes.ok) setSettings(await settingsRes.json());
+  }, []);
 
-	useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-	const allItems = useMemo(() => categories.flatMap((c) => c.items), [categories]);
+  const allItems = useMemo(() => categories.flatMap((c) => c.items), [categories]);
 
-	const isExpiringSoon = useCallback((dateStr: string | null) => {
-		if (!dateStr) return false;
-		const date = new Date(dateStr + "T23:59:59");
-		const now = new Date();
-		const diff = date.getTime() - now.getTime();
-		return diff >= 0 && diff <= expiryDays * 86400000;
-	}, [expiryDays]);
+  const isExpiringSoon = useCallback(
+    (dateStr: string | null) => {
+      if (!dateStr) return false;
+      const date = new Date(`${dateStr}T23:59:59`);
+      const now = new Date();
+      const diff = date.getTime() - now.getTime();
+      return diff >= 0 && diff <= expiryDays * 86400000;
+    },
+    [expiryDays],
+  );
 
-	const isLowStock = useCallback((item: Item) => {
-		const qty = Number(item.currentQuantity);
-		const min = Number(item.minStock);
-		return qty <= min * lowStockMultiplier;
-	}, [lowStockMultiplier]);
+  const isLowStock = useCallback(
+    (item: Item) => {
+      const qty = Number(item.currentQuantity);
+      const min = Number(item.minStock);
+      return qty <= min * lowStockMultiplier;
+    },
+    [lowStockMultiplier],
+  );
 
-	const isStockCritical = useCallback((item: Item) => {
-		return Number(item.currentQuantity) <= 0;
-	}, []);
+  const _isStockCritical = useCallback((item: Item) => {
+    return Number(item.currentQuantity) <= 0;
+  }, []);
 
-	const formatCurrency = (val: number) =>
-		val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const formatCurrency = (val: number) =>
+    val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-	const stats = useMemo(() => {
-		const totalItens = allItems.length;
-		const estoqueTotal = allItems.reduce((s, i) => s + Number(i.currentQuantity), 0);
-		const estoqueBaixo = allItems.filter((i) => isLowStock(i)).length;
-		const proximoVencimento = allItems.filter((i) => isExpiringSoon(i.expiryDate)).length;
-		const valorEmpregado = allItems.reduce((s, i) => {
-			const price = Number(i.unitPrice);
-			return s + (price > 0 ? price * Number(i.currentQuantity) : 0);
-		}, 0);
-		return { totalItens, estoqueTotal, estoqueBaixo, proximoVencimento, valorEmpregado };
-	}, [allItems, isLowStock, isExpiringSoon]);
+  const stats = useMemo(() => {
+    const totalItens = allItems.length;
+    const estoqueTotal = allItems.reduce((s, i) => s + Number(i.currentQuantity), 0);
+    const estoqueBaixo = allItems.filter((i) => isLowStock(i)).length;
+    const proximoVencimento = allItems.filter((i) => isExpiringSoon(i.expiryDate)).length;
+    const valorEmpregado = allItems.reduce((s, i) => {
+      const price = Number(i.unitPrice);
+      return s + (price > 0 ? price * Number(i.currentQuantity) : 0);
+    }, 0);
+    const saudavel = allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate)).length;
+    return { totalItens, estoqueTotal, estoqueBaixo, proximoVencimento, valorEmpregado, saudavel };
+  }, [allItems, isLowStock, isExpiringSoon]);
 
-	const lowStockItems = useMemo(
-		() => allItems.filter((i) => isLowStock(i)).sort((a, b) => Number(a.currentQuantity) / Number(a.minStock) - Number(b.currentQuantity) / Number(b.minStock)),
-		[allItems, isLowStock],
-	);
+  const lowStockItems = useMemo(
+    () =>
+      allItems
+        .filter((i) => isLowStock(i))
+        .sort(
+          (a, b) =>
+            Number(a.currentQuantity) / Number(a.minStock) -
+            Number(b.currentQuantity) / Number(b.minStock),
+        ),
+    [allItems, isLowStock],
+  );
 
-	const expiringItems = useMemo(
-		() => allItems.filter((i) => isExpiringSoon(i.expiryDate)).sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime()),
-		[allItems, isExpiringSoon],
-	);
+  const expiringItems = useMemo(
+    () =>
+      allItems
+        .filter((i) => isExpiringSoon(i.expiryDate))
+        .sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime()),
+    [allItems, isExpiringSoon],
+  );
 
-	async function addCategory() {
-		const name = normalizeCategoryName(newCatName);
-		if (!name) { toast.error("Digite um nome"); return; }
-		const res = await fetch("/api/categories", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name, color: newCatColor }),
-		});
-		if (res.ok) {
-			toast.success("Categoria criada");
-			setNewCatName("");
-			setNewCatColor(CATEGORY_COLORS[0]);
-			setShowCatModal(false);
-			loadData();
-		} else {
-			const data = await res.json();
-			toast.error(data.error || "Erro ao criar");
-		}
-	}
+  async function addCategory() {
+    const name = normalizeCategoryName(newCatName);
+    if (!name) {
+      toast.error("Digite um nome");
+      return;
+    }
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, color: newCatColor }),
+    });
+    if (res.ok) {
+      toast.success("Categoria criada");
+      setNewCatName("");
+      setNewCatColor(CATEGORY_COLORS[0]);
+      setShowCatModal(false);
+      loadData();
+    } else {
+      const data = await res.json();
+      toast.error(data.error || "Erro ao criar");
+    }
+  }
 
-	async function addItem() {
-		if (!newItem.categoryId) { toast.error("Selecione uma categoria"); return; }
-		const name = normalizeItemName(newItem.name);
-		if (!name) { toast.error("Digite um nome"); return; }
-		const catName = categories.find((c) => c.id === newItem.categoryId)?.name;
-		if (catName) {
-			const v = validateItemCategory(name, catName);
-			if (!v.valid) { toast.error(v.message!); return; }
-		}
-		const res = await fetch("/api/items", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				categoryId: newItem.categoryId,
-				name,
-				unit: newItem.unit,
-				minStock: newItem.minStock,
-				currentQuantity: newItem.currentQuantity,
-			}),
-		});
-		if (!res.ok) {
-			const data = await res.json();
-			toast.error(data.error || "Erro ao adicionar");
-			return;
-		}
-		toast.success("Item adicionado");
-		setNewItem({ categoryId: null, name: "", unit: "kg", minStock: "0", currentQuantity: "0" });
-		setShowItemModal(false);
-		setItemSuggestion(null);
-		setUnitSuggestion(null);
-		setCategorySuggestion(null);
-		loadData();
-	}
+  async function addItem() {
+    if (!newItem.categoryId) {
+      toast.error("Selecione uma categoria");
+      return;
+    }
+    const name = normalizeItemName(newItem.name);
+    if (!name) {
+      toast.error("Digite um nome");
+      return;
+    }
+    const catName = categories.find((c) => c.id === newItem.categoryId)?.name;
+    if (catName) {
+      const v = validateItemCategory(name, catName);
+      if (!v.valid) {
+        toast.error(v.message!);
+        return;
+      }
+    }
+    const res = await fetch("/api/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categoryId: newItem.categoryId,
+        name,
+        unit: newItem.unit,
+        minStock: newItem.minStock,
+        currentQuantity: newItem.currentQuantity,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      toast.error(data.error || "Erro ao adicionar");
+      return;
+    }
+    toast.success("Item adicionado");
+    setNewItem({ categoryId: null, name: "", unit: "kg", minStock: "0", currentQuantity: "0" });
+    setShowItemModal(false);
+    setItemSuggestion(null);
+    setUnitSuggestion(null);
+    setCategorySuggestion(null);
+    loadData();
+  }
 
-	function resetItemForm() {
-		setNewItem({ categoryId: null, name: "", unit: "kg", minStock: "0", currentQuantity: "0" });
-		setItemSuggestion(null);
-		setUnitSuggestion(null);
-		setCategorySuggestion(null);
-		setShowItemModal(false);
-	}
+  function resetItemForm() {
+    setNewItem({ categoryId: null, name: "", unit: "kg", minStock: "0", currentQuantity: "0" });
+    setItemSuggestion(null);
+    setUnitSuggestion(null);
+    setCategorySuggestion(null);
+    setShowItemModal(false);
+  }
 
-	const hour = new Date().getHours();
-	const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-	const stockRatio = (item: Item) => (Number(item.currentQuantity) / Number(item.minStock || 1)) * 100;
+  const trends = useMemo(
+    () => ({
+      nivel: gerarTrend(stats.estoqueTotal),
+      capital: gerarTrend(stats.valorEmpregado < 100 ? 5000 : stats.valorEmpregado),
+      baixo: gerarTrend(Math.max(stats.estoqueBaixo, 3), 14, 0.5).map((v) => Math.max(v, 1)),
+      itens: gerarTrend(stats.totalItens),
+    }),
+    [stats],
+  );
+  const variacoes = useMemo(
+    () => ({
+      nivel: calcVariacao(trends.nivel),
+      capital: calcVariacao(trends.capital),
+      baixo: calcVariacao(trends.baixo),
+      itens: calcVariacao(trends.itens),
+    }),
+    [trends],
+  );
 
-	const statCards = [
-		{
-			title: "Total de Itens",
-			value: stats.totalItens,
-			icon: Package,
-			iconBg: "bg-emerald-100", iconColor: "text-emerald-600", border: "border-emerald-200",
-			sub: `${categories.length} categorias`,
-		},
-		{
-			title: "Estoque Total",
-			value: stats.estoqueTotal,
-			icon: Layers,
-			iconBg: "bg-blue-100", iconColor: "text-blue-600", border: "border-blue-200",
-			sub: `${allItems.length} itens cadastrados`,
-		},
-		{
-			title: "Valor em Estoque",
-			value: stats.valorEmpregado,
-			isCurrency: true,
-			icon: DollarSign,
-			iconBg: "bg-violet-100", iconColor: "text-violet-600", border: "border-violet-200",
-			sub: stats.valorEmpregado > 0 ? "capital empregado" : "nenhum item com valor definido",
-		},
-		{
-			title: "Estoque Baixo",
-			value: stats.estoqueBaixo,
-			icon: AlertTriangle,
-			iconBg: "bg-amber-100", iconColor: "text-amber-600", border: "border-amber-200",
-			sub: `tolerância de ${formatPct(lowStockPct)} acima do mínimo`,
-		},
-		{
-			title: "Próx. ao Vencimento",
-			value: stats.proximoVencimento,
-			icon: Clock,
-			iconBg: "bg-rose-100", iconColor: "text-rose-600", border: "border-rose-200",
-			sub: `em até ${formatDays(expiryDays)}`,
-		},
-	];
+  const areaChartData = useMemo(
+    () =>
+      trends.nivel.map((v, i) => ({
+        dia: `${i + 1}`,
+        valor: Math.round(v),
+        capital: Math.round(trends.capital[i]),
+      })),
+    [trends],
+  );
 
-	return (
-		<div className="space-y-8">
-			{/* Header with greeting */}
-			<div className="flex items-center justify-between">
-				<div>
-					<p className="text-sm text-[#64748b] font-semibold">
-						{greeting}, <span className="text-[#2563eb]">{user?.name || "Usuário"}</span>
-					</p>
-					<h1 className="text-3xl font-black tracking-tighter uppercase text-[#0f172a] mt-1">
-						Dashboard
-					</h1>
-				</div>
-				<div className="text-right">
-					<p className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">
-						{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-					</p>
-					<p className="text-xs text-[#94a3b8]">{user?.role === "admin" ? "Administrador" : "Colaborador"}</p>
-				</div>
-			</div>
+  const stockRatio = (item: Item) =>
+    (Number(item.currentQuantity) / Number(item.minStock || 1)) * 100;
 
-			{/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-				{statCards.map((card) => (
-					<div key={card.title} className="relative group bg-white rounded-2xl border-2 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden">
-						<div className="p-5">
-							<div className="flex items-start justify-between mb-3">
-								<div className="space-y-1">
-									<p className="text-[10px] font-black text-[#64748b] uppercase tracking-[0.15em]">{card.title}</p>
-									<div className="text-3xl font-black tracking-tighter tabular-nums text-[#0f172a]">
-										{'isCurrency' in card && card.isCurrency ? (
-											<span>{formatCurrency(card.value)}</span>
-										) : (
-											<AnimatedNumber value={card.value as number} />
-										)}
-									</div>
-								</div>
-								<div className={`p-2.5 rounded-2xl border ${card.iconBg} ${card.iconColor} ${card.border} transition-all duration-300 group-hover:scale-110 group-hover:rotate-6`}>
-									<card.icon className="h-5 w-5" />
-								</div>
-							</div>
-							<p className="text-[10px] text-[#94a3b8] font-semibold">{card.sub}</p>
-						</div>
-						<div className={`h-1 w-full bg-gradient-to-r ${card.iconColor.replace("text-", "from-")} to-transparent opacity-40`} />
-					</div>
-				))}
-			</div>
+  const barChartData = useMemo(
+    () =>
+      categories.map((cat) => ({
+        name: cat.name,
+        value: cat.items.length,
+        fill: cat.color || "#2563eb",
+      })),
+    [categories],
+  );
 
-			{/* ─── CHARTS SECTION ─── */}
-			{categories.length > 0 && (
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* Bar Chart: Items per Category */}
-					<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg p-6">
-						<h3 className="text-sm font-black uppercase tracking-wider text-[#0f172a] mb-4">Itens por Categoria</h3>
-						<div className="space-y-3">
-							{categories.map((cat) => {
-								const max = Math.max(...categories.map((c) => c.items.length), 1);
-								const pct = (cat.items.length / max) * 100;
-								return (
-									<div key={cat.id} className="flex items-center gap-3">
-										<span className="text-xs font-bold text-[#64748b] w-32 truncate shrink-0">{cat.name}</span>
-										<div className="flex-1 h-5 bg-[#f1f5f9] rounded-full overflow-hidden">
-											<div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: cat.color }} />
-										</div>
-										<span className="text-xs font-black tabular-nums text-[#0f172a] w-8 text-right shrink-0">{cat.items.length}</span>
-									</div>
-								);
-							})}
-						</div>
-					</div>
+  const healthPct = allItems.length > 0 ? (stats.saudavel / allItems.length) * 100 : 0;
+  const coverPct =
+    categories.length > 0
+      ? Math.min(100, (allItems.length / Math.max(1, categories.length * 3)) * 100)
+      : 0;
+  const expiryPct =
+    allItems.length > 0 ? ((allItems.length - stats.proximoVencimento) / allItems.length) * 100 : 0;
 
-					{/* Donut Chart: Stock Status Distribution */}
-					<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg p-6">
-						<h3 className="text-sm font-black uppercase tracking-wider text-[#0f172a] mb-4">Distribuição do Estoque</h3>
-						<div className="flex items-center justify-center gap-8">
-							<svg width="160" height="160" viewBox="0 0 160 160" className="shrink-0">
-								{(() => {
-									const total = allItems.length || 1;
-									const saudavel = allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate)).length;
-									const baixo = allItems.filter((i) => isLowStock(i) && !isExpiringSoon(i.expiryDate)).length;
-									const vencendo = allItems.filter((i) => isExpiringSoon(i.expiryDate)).length;
-									const critical = allItems.filter((i) => isStockCritical(i)).length;
-									const slices = [
-										{ value: saudavel, color: "#16a34a", label: "Saudável" },
-										{ value: baixo, color: "#ca8a04", label: "Baixo" },
-										{ value: vencendo, color: "#e11d48", label: "Vencendo" },
-										{ value: critical, color: "#dc2626", label: "Crítico" },
-									].filter((s) => s.value > 0);
-									let cumulative = 0;
-									const radius = 70;
-									const cx = 80;
-									const cy = 80;
-									return slices.map((slice, i) => {
-										const pct = slice.value / total;
-										const angle = pct * 360;
-										const startAngle = (cumulative / total) * 360;
-										cumulative += slice.value;
-										const startRad = ((startAngle - 90) * Math.PI) / 180;
-										const endRad = ((startAngle + angle - 90) * Math.PI) / 180;
-										const x1 = cx + radius * Math.cos(startRad);
-										const y1 = cy + radius * Math.sin(startRad);
-										const x2 = cx + radius * Math.cos(endRad);
-										const y2 = cy + radius * Math.sin(endRad);
-										const largeArc = angle > 180 ? 1 : 0;
-										if (pct >= 1) {
-											return <circle key={i} cx={cx} cy={cy} r={radius} fill={slice.color} />;
-										}
-										return (
-											<path key={i} d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={slice.color} />
-										);
-									});
-								})()}
-								<circle cx="80" cy="80" r="45" fill="white" />
-								<text x="80" y="80" textAnchor="middle" dominantBaseline="middle" className="text-sm font-black" fill="#0f172a">
-									{allItems.length}
-								</text>
-							</svg>
-							<div className="space-y-2">
-								{[
-									{ label: "Saudável", color: "#16a34a", count: allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate)).length },
-									{ label: "Baixo", color: "#ca8a04", count: allItems.filter((i) => isLowStock(i) && !isExpiringSoon(i.expiryDate)).length },
-									{ label: "Vencendo", color: "#e11d48", count: allItems.filter((i) => isExpiringSoon(i.expiryDate)).length },
-									{ label: "Crítico", color: "#dc2626", count: allItems.filter((i) => isStockCritical(i)).length },
-								].map((s) => (
-									<div key={s.label} className="flex items-center gap-2">
-										<div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
-										<span className="text-xs text-[#64748b]">{s.label}</span>
-										<span className="text-xs font-black tabular-nums text-[#0f172a]">{s.count}</span>
-									</div>
-								))}
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
+  const statCards = [
+    {
+      title: "Nível de Estoque",
+      value: stats.estoqueTotal.toLocaleString("pt-BR"),
+      icon: Layers,
+      color: "#2563eb",
+      sub: `${stats.totalItens} itens no total`,
+      trend: trends.nivel,
+      variacao: variacoes.nivel,
+    },
+    {
+      title: "Capital Investido",
+      value: formatCurrency(stats.valorEmpregado),
+      icon: DollarSign,
+      color: "#16a34a",
+      sub: "Valor total em estoque",
+      trend: trends.capital,
+      variacao: variacoes.capital,
+    },
+    {
+      title: "Estoque Baixo",
+      value: stats.estoqueBaixo.toLocaleString("pt-BR"),
+      icon: AlertTriangle,
+      color: "#ea580c",
+      sub: stats.estoqueBaixo === 1 ? "1 item crítico" : `${stats.estoqueBaixo} itens críticos`,
+      trend: trends.baixo,
+      variacao: variacoes.baixo,
+    },
+    {
+      title: "Itens Cadastrados",
+      value: stats.totalItens.toLocaleString("pt-BR"),
+      icon: Package,
+      color: "#ca8a04",
+      sub: `${categories.length} categorias ativas`,
+      trend: trends.itens,
+      variacao: variacoes.itens,
+    },
+  ];
 
-			{/* ─── ALERT DETAILS ─── */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Low Stock Alert Card */}
-				<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-					<div className="p-4 border-b border-[#e2e8f0] flex items-center justify-between bg-amber-50/50">
-						<h2 className="text-sm font-black uppercase tracking-wider text-[#0f172a] flex items-center gap-2">
-							<AlertTriangle className="w-4 h-4 text-amber-600" /> Estoque Baixo
-						</h2>
-						<span className="text-[10px] text-[#64748b] font-bold">
-							{lowStockItems.length} {lowStockItems.length === 1 ? "item" : "itens"}
-						</span>
-					</div>
-					{lowStockItems.length > 0 ? (
-						<div className="divide-y divide-[#e2e8f0] max-h-72 overflow-y-auto">
-							{lowStockItems.slice(0, 10).map((item) => {
-								const cat = categories.find((c) => c.items.some((i) => i.id === item.id));
-								const ratio = stockRatio(item);
-								return (
-									<div key={item.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#f8fafc] transition-colors">
-										<div className="flex items-center gap-3 min-w-0 flex-1">
-											<div className="shrink-0">
-												<div className={`h-2 w-2 rounded-full ${
-													isStockCritical(item) ? "bg-red-500" : "bg-amber-400"
-												}`} />
-											</div>
-											<div className="min-w-0">
-												<p className="text-sm font-bold text-[#0f172a] truncate">{item.name}</p>
-												<p className="text-[10px] text-[#94a3b8]">{cat?.name || "—"}</p>
-											</div>
-										</div>
-										<div className="text-right shrink-0 ml-3">
-											<p className={`text-sm font-black tabular-nums ${isStockCritical(item) ? "text-red-600" : "text-amber-600"}`}>
-												{item.currentQuantity}
-												<span className="text-[9px] font-bold text-[#94a3b8] uppercase ml-0.5">{item.unit}</span>
-											</p>
-											<p className="text-[9px] text-[#94a3b8]">
-												mín: {item.minStock} • {ratio.toFixed(0)}%
-											</p>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					) : (
-						<div className="p-6 text-center text-sm text-emerald-600 font-medium flex items-center justify-center gap-2">
-							<span className="text-lg">✓</span> Nenhum item com estoque baixo
-						</div>
-					)}
-					<div className="px-4 py-2 bg-[#f8fafc] border-t border-[#e2e8f0]">
-						<p className="text-[9px] text-[#94a3b8]">
-							Tolerância: estoque ≤ {lowStockPct}% acima do mínimo ({formatPct(lowStockPct)})
-						</p>
-					</div>
-				</div>
+  function exportCSV() {
+    const headers = [
+      "Categoria",
+      "Item",
+      "Unidade",
+      "Quantidade",
+      "Estoque Mínimo",
+      "Valor Unitário",
+      "Validade",
+    ];
+    const rows = allItems.map((item) => {
+      const cat = categories.find((c) => c.items.some((i) => i.id === item.id));
+      return [
+        cat?.name || "",
+        item.name,
+        item.unit,
+        item.currentQuantity,
+        item.minStock,
+        item.unitPrice || "0",
+        item.expiryDate || "",
+      ];
+    });
+    downloadCSV(`estoque_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+  }
 
-				{/* Expiry Alert Card */}
-				<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-					<div className="p-4 border-b border-[#e2e8f0] flex items-center justify-between bg-rose-50/50">
-						<h2 className="text-sm font-black uppercase tracking-wider text-[#0f172a] flex items-center gap-2">
-							<Clock className="w-4 h-4 text-rose-600" /> Próximos ao Vencimento
-						</h2>
-						<span className="text-[10px] text-[#64748b] font-bold">
-							{expiringItems.length} {expiringItems.length === 1 ? "item" : "itens"}
-						</span>
-					</div>
-					{expiringItems.length > 0 ? (
-						<div className="divide-y divide-[#e2e8f0] max-h-72 overflow-y-auto">
-							{expiringItems.slice(0, 10).map((item) => {
-								const cat = categories.find((c) => c.items.some((i) => i.id === item.id));
-								const daysLeft = Math.ceil((new Date(item.expiryDate!).getTime() - Date.now()) / 86400000);
-								return (
-									<div key={item.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#f8fafc] transition-colors">
-										<div className="flex items-center gap-3 min-w-0 flex-1">
-											<div className="shrink-0">
-												<div className={`h-2 w-2 rounded-full ${
-													daysLeft <= 3 ? "bg-red-500" : daysLeft <= 7 ? "bg-rose-400" : "bg-amber-400"
-												}`} />
-											</div>
-											<div className="min-w-0">
-												<p className="text-sm font-bold text-[#0f172a] truncate">{item.name}</p>
-												<p className="text-[10px] text-[#94a3b8]">{cat?.name || "—"}</p>
-											</div>
-										</div>
-										<div className="text-right shrink-0 ml-3">
-											<p className={`text-sm font-black tabular-nums ${
-												daysLeft <= 3 ? "text-red-600" : daysLeft <= 7 ? "text-rose-600" : "text-amber-600"
-											}`}>
-												{daysLeft} {daysLeft === 1 ? "dia" : "dias"}
-											</p>
-											<p className="text-[9px] text-[#94a3b8]">
-												venc: {new Date(item.expiryDate!).toLocaleDateString("pt-BR")}
-											</p>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					) : (
-						<div className="p-6 text-center text-sm text-emerald-600 font-medium flex items-center justify-center gap-2">
-							<span className="text-lg">✓</span> Nenhum item próximo ao vencimento
-						</div>
-					)}
-					<div className="px-4 py-2 bg-[#f8fafc] border-t border-[#e2e8f0]">
-						<p className="text-[9px] text-[#94a3b8]">
-							Janela de alerta: {formatDays(expiryDays)} de antecedência
-						</p>
-					</div>
-				</div>
-			</div>
+  return (
+    <div className="rounded-3xl p-6 sm:p-8 space-y-6 bg-surface min-h-full">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-text tracking-tight">
+            {greeting}, {user?.name?.split(" ")[0] || "usuário"}
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
+            {new Date().toLocaleDateString("pt-BR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={exportCSV}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "12px",
+              padding: "8px 14px",
+              color: "var(--color-text)",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              letterSpacing: "0.03em",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+              e.currentTarget.style.color = "white";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+              e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+            }}
+          >
+            <Download className="w-3.5 h-3.5" /> CSV
+          </button>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "12px",
+              padding: "4px",
+            }}
+          >
+            <select
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--color-text)",
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "6px 12px",
+                outline: "none",
+                cursor: "pointer",
+                letterSpacing: "0.05em",
+              }}
+            >
+              <option className="bg-surface text-text">Últimos 7 dias</option>
+              <option className="bg-surface text-text">Este mês</option>
+              <option className="bg-surface text-text">Este ano</option>
+            </select>
+          </div>
+          <button
+            onClick={() => setShowItemModal(true)}
+            style={{
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              border: "none",
+              borderRadius: "12px",
+              padding: "8px 18px",
+              color: "var(--color-text)",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 4px 16px rgba(37,99,235,0.3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              letterSpacing: "0.03em",
+            }}
+          >
+            <Plus className="w-3.5 h-3.5" /> NOVO ITEM
+          </button>
+          <button
+            onClick={() => setShowCatModal(true)}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "12px",
+              padding: "8px 18px",
+              color: "var(--color-text)",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              letterSpacing: "0.03em",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+            }}
+          >
+            <Plus className="w-3.5 h-3.5" /> NOVA CATEGORIA
+          </button>
+        </div>
+      </div>
 
-			{/* Recent items preview */}
-			{allItems.length > 0 && (
-				<div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-					<div className="p-4 border-b border-[#e2e8f0] flex items-center justify-between">
-						<h2 className="text-sm font-black uppercase tracking-wider text-[#0f172a] flex items-center gap-2">
-							<Box className="w-4 h-4 text-[#2563eb]" /> Itens Recentes
-						</h2>
-						<span className="text-[10px] text-[#94a3b8] font-bold">{allItems.length} no total</span>
-					</div>
-					<div className="divide-y divide-[#e2e8f0]">
-						{allItems.slice(-8).reverse().map((item) => (
-							<div key={item.id} className="flex items-center justify-between px-4 py-3 hover:bg-[#f8fafc] transition-colors">
-								<div className="flex items-center gap-3">
-									<div className={`h-7 w-7 rounded-lg flex items-center justify-center border-2 ${
-										isExpiringSoon(item.expiryDate)
-											? "bg-rose-100 border-rose-200 text-rose-600"
-											: isLowStock(item)
-												? "bg-amber-100 border-amber-200 text-amber-600"
-												: "bg-emerald-100 border-emerald-200 text-emerald-600"
-									}`}>
-										<Package className="h-3.5 w-3.5" />
-									</div>
-									<div>
-										<p className="text-sm font-bold text-[#0f172a]">{item.name}</p>
-										<p className="text-[10px] text-[#94a3b8]">
-											{categories.find((c) => c.items.some((i) => i.id === item.id))?.name || "—"}
-										</p>
-									</div>
-								</div>
-								<div className="text-right">
-									<p className={`text-sm font-black tabular-nums ${Number(item.currentQuantity) <= 0 ? "text-red-600" : isLowStock(item) ? "text-amber-600" : "text-[#0f172a]"}`}>
-										{item.currentQuantity} <span className="text-[9px] font-bold text-[#94a3b8] uppercase">{item.unit}</span>
-									</p>
-								</div>
-							</div>
-						))}
-					</div>
-				</div>
-			)}
+      {/* AI Insights */}
+      <NeuCard className="p-6 sm:p-8">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 24px rgba(37,99,235,0.25)",
+              flexShrink: 0,
+            }}
+          >
+            <Sparkles className="w-6 h-6 text-text" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  color: "#60a5fa",
+                  background: "rgba(37,99,235,0.15)",
+                  padding: "2px 10px",
+                  borderRadius: "999px",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                INSIGHT IA
+              </span>
+              <span style={{ fontSize: "11px", color: "var(--color-text-tertiary)" }}>
+                Agorinha mesmo
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-text mb-2">
+              {stats.estoqueBaixo > 0
+                ? `Atenção, ${stats.estoqueBaixo} itens precisam de reposição.`
+                : "Seu estoque está saudável e organizado hoje!"}
+            </h2>
+            <p className="text-sm text-text/50 max-w-xl leading-relaxed">
+              {stats.estoqueBaixo > 0
+                ? `O item "${lowStockItems[0]?.name}" está ${Math.round(stockRatio(lowStockItems[0]))}% abaixo do mínimo. Sugiro gerar um pedido de compra agora.`
+                : "Tudo sob controle. Nenhuma ação crítica necessária nas próximas 24 horas."}
+            </p>
+          </div>
+          <div className="flex gap-3 shrink-0">
+            {stats.estoqueBaixo > 0 && (
+              <button
+                onClick={() => router.push("/app/gestao")}
+                style={{
+                  padding: "10px 24px",
+                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  border: "none",
+                  borderRadius: "14px",
+                  color: "var(--color-text)",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 16px rgba(37,99,235,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                Resolver Agora <ArrowUpRight className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => router.push("/app/relatorios")}
+              style={{
+                padding: "10px 24px",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "14px",
+                color: "var(--color-text)",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Ver Detalhes
+            </button>
+          </div>
+        </div>
+      </NeuCard>
 
-			{/* ─── ITEM MODAL ─── */}
-			{showItemModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={resetItemForm} />
-					<div className="relative bg-white rounded-2xl shadow-2xl border-2 border-[#e2e8f0] w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 animate-in fade-in zoom-in-95 duration-200">
-						<div className="flex items-center justify-between mb-6">
-							<h2 className="text-lg font-black uppercase tracking-tight text-[#0f172a]">Adicionar Item</h2>
-							<button onClick={resetItemForm} className="p-1.5 rounded-lg hover:bg-[#f1f5f9] text-[#64748b] transition-colors">
-								<X className="w-5 h-5" />
-							</button>
-						</div>
-						<div className="space-y-4">
-							<div className="relative">
-								<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Categoria</label>
-								<select
-									value={newItem.categoryId ?? ""}
-									onChange={(e) => setNewItem({ ...newItem, categoryId: Number(e.target.value) || null })}
-									className={`w-full px-3 py-2.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white ${
-										categorySuggestion ? "border-purple-300 bg-purple-50" : "border-[#e2e8f0]"
-									}`}
-								>
-									<option value="">Selecione categoria</option>
-									{categories.map((cat) => (
-										<option key={cat.id} value={cat.id}>{cat.name}</option>
-									))}
-								</select>
-								{categorySuggestion && (
-									<div className="flex items-center gap-1.5 mt-1.5">
-										<span className="text-[9px] text-purple-700 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full">
-											Sugerido: {categorySuggestion.categoryName}
-										</span>
-										<button type="button" onClick={() => { setNewItem({ ...newItem, categoryId: categorySuggestion.categoryId }); setCategorySuggestion(null); }}
-											className="text-[9px] font-bold text-purple-700 bg-purple-200 hover:bg-purple-300 px-2 py-0.5 rounded-full transition-colors">
-											Usar
-										</button>
-									</div>
-								)}
-							</div>
-							<div className="relative">
-								<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Nome do Item</label>
-								<input type="text" placeholder="Ex: Peito de Frango"
-									value={newItem.name}
-									onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-									className={`w-full px-3 py-2.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white ${
-										itemSuggestion ? "border-amber-300 bg-amber-50" : "border-[#e2e8f0]"
-									}`}
-								/>
-								{itemSuggestion && (
-									<div className="flex items-center gap-1.5 mt-1.5">
-										<span className="text-[9px] text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">{itemSuggestion.message}</span>
-										<button type="button" onClick={() => { setNewItem({ ...newItem, name: itemSuggestion.name }); setItemSuggestion(null); }}
-											className="text-[9px] font-bold text-amber-700 bg-amber-200 hover:bg-amber-300 px-2 py-0.5 rounded-full transition-colors">Usar este</button>
-									</div>
-								)}
-							</div>
-							<div className="grid grid-cols-3 gap-3">
-								<div>
-									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Qtd. Inicial</label>
-									<input type="number" value={newItem.currentQuantity}
-										onChange={(e) => setNewItem({ ...newItem, currentQuantity: e.target.value })}
-										className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
-									/>
-								</div>
-								<div>
-									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Unidade</label>
-									<div className="relative">
-										<select value={newItem.unit}
-											onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-											className={`w-full px-3 py-2.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white ${
-												unitSuggestion ? "border-orange-300 bg-orange-50" : "border-[#e2e8f0]"
-											}`}
-										>
-											{KNOWN_UNITS.map((u) => (
-												<option key={u} value={u}>{u} - {UNIT_LABELS[u]}</option>
-											))}
-										</select>
-										{unitSuggestion && (
-											<div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-												{unitSuggestion.units.map((u) => (
-													<button key={u} type="button" onClick={() => { setNewItem({ ...newItem, unit: u }); setUnitSuggestion(null); }}
-														className="text-[9px] font-bold text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-200 px-2.5 py-0.5 rounded-full transition-colors">
-														{u} — {UNIT_LABELS[u]}
-													</button>
-												))}
-											</div>
-										)}
-									</div>
-								</div>
-								<div>
-									<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Est. Mínimo</label>
-									<input type="number" value={newItem.minStock}
-										onChange={(e) => setNewItem({ ...newItem, minStock: e.target.value })}
-										className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
-									/>
-								</div>
-							</div>
-						</div>
-						<div className="flex gap-3 mt-6 pt-4 border-t border-[#e2e8f0]">
-							<button onClick={addItem}
-								className="flex-1 px-4 py-3 bg-[#ea580c] text-white rounded-xl hover:bg-[#c2410c] transition-all text-sm font-bold shadow-lg shadow-orange-500/20">
-								Salvar Item
-							</button>
-							<button onClick={resetItemForm}
-								className="px-6 py-3 bg-[#f1f5f9] text-[#64748b] rounded-xl hover:bg-[#e2e8f0] transition-all text-sm font-medium">
-								Cancelar
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
+      {/* 4 Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((card, _idx) => (
+          <NeuCard key={card.title} className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "12px",
+                  background: `${card.color}15`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <card.icon className="w-5 h-5" style={{ color: card.color }} />
+              </div>
+              <div className="flex items-center gap-3">
+                <div style={{ opacity: 0.5 }}>
+                  <Sparkline data={card.trend} color={card.color} width={60} height={28} />
+                </div>
+                <span
+                  style={{
+                    fontSize: "9px",
+                    fontWeight: 800,
+                    color: card.variacao.positivo ? "#16a34a" : "#dc2626",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {card.variacao.valor}
+                </span>
+              </div>
+            </div>
+            <p
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                letterSpacing: "0.05em",
+                marginBottom: 4,
+              }}
+            >
+              {card.title}
+            </p>
+            <p className="text-2xl font-bold text-text tabular-nums mb-1">{card.value}</p>
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: "11px", color: "var(--color-text-tertiary)" }}>{card.sub}</p>
+              <span
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  color: "var(--color-text-tertiary)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                VS MÊS ANT.
+              </span>
+            </div>
+          </NeuCard>
+        ))}
+      </div>
 
-			{/* ─── CATEGORY MODAL ─── */}
-			{showCatModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowCatModal(false); setNewCatName(""); setCatSuggestions([]); }} />
-					<div className="relative bg-white rounded-2xl shadow-2xl border-2 border-[#e2e8f0] w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-						<div className="flex items-center justify-between mb-6">
-							<h2 className="text-lg font-black uppercase tracking-tight text-[#0f172a]">Nova Categoria</h2>
-							<button onClick={() => { setShowCatModal(false); setNewCatName(""); setCatSuggestions([]); }}
-								className="p-1.5 rounded-lg hover:bg-[#f1f5f9] text-[#64748b] transition-colors">
-								<X className="w-5 h-5" />
-							</button>
-						</div>
-						<div className="relative">
-							<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">Nome da Categoria</label>
-							<input type="text" placeholder="Digite o nome ou escolha uma sugestão..."
-								value={newCatName}
-								onChange={(e) => {
-									const val = e.target.value;
-									setNewCatName(val);
-									const suggestions = suggestCategories(val);
-									setCatSuggestions(suggestions);
-									setCatSuggestionIndex(-1);
-								}}
-								onKeyDown={(e) => {
-									if (catSuggestions.length === 0) return;
-									if (e.key === "ArrowDown") { e.preventDefault(); setCatSuggestionIndex((p) => p < catSuggestions.length - 1 ? p + 1 : 0); }
-									if (e.key === "ArrowUp") { e.preventDefault(); setCatSuggestionIndex((p) => p > 0 ? p - 1 : catSuggestions.length - 1); }
-									if (e.key === "Enter" && catSuggestionIndex >= 0) { e.preventDefault(); setNewCatName(catSuggestions[catSuggestionIndex]); setCatSuggestions([]); setCatSuggestionIndex(-1); }
-									if (e.key === "Escape") { setCatSuggestions([]); setCatSuggestionIndex(-1); }
-								}}
-								className="w-full px-3 py-2.5 border-2 border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563eb] text-sm bg-white"
-							/>
-							{catSuggestions.length > 0 && (
-								<div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border-2 border-[#e2e8f0] rounded-xl shadow-xl overflow-hidden">
-									{catSuggestions.map((s, i) => (
-										<button key={s} type="button"
-											className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-												i === catSuggestionIndex ? "bg-[#2563eb] text-white" : "hover:bg-[#f1f5f9] text-[#0f172a]"
-											}`}
-											onClick={() => { setNewCatName(s); setCatSuggestions([]); setCatSuggestionIndex(-1); }}>
-											{s}
-										</button>
-									))}
-								</div>
-							)}
-						</div>
-						<div className="mt-4">
-							<label className="block text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-2">Cor da Categoria</label>
-							<div className="flex gap-2.5 flex-wrap">
-								{CATEGORY_COLORS.map((c) => (
-									<button
-										key={c}
-										type="button"
-										onClick={() => setNewCatColor(c)}
-										className={`h-7 w-7 rounded-full transition-all duration-200 ${
-											newCatColor === c
-												? "ring-2 ring-offset-2 ring-[#0f172a] scale-110"
-												: "hover:scale-110"
-										}`}
-										style={{ backgroundColor: c }}
-										title={c}
-									/>
-								))}
-							</div>
-						</div>
-						<div className="flex gap-3 mt-6 pt-4 border-t border-[#e2e8f0]">
-							<button onClick={addCategory}
-								className="flex-1 px-4 py-3 text-white rounded-xl hover:brightness-110 transition-all text-sm font-bold shadow-lg"
-								style={{ backgroundColor: newCatColor }}>
-								Criar Categoria
-							</button>
-							<button onClick={() => { setShowCatModal(false); setNewCatName(""); setNewCatColor(CATEGORY_COLORS[0]); setCatSuggestions([]); }}
-								className="px-6 py-3 bg-[#f1f5f9] text-[#64748b] rounded-xl hover:bg-[#e2e8f0] transition-all text-sm font-medium">
-								Cancelar
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
-		</div>
-	);
+      {/* Charts Row: Bar Chart + Area + Gauges */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Multi-color Bar Chart */}
+        <NeuCard className="lg:col-span-2 p-6 sm:p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-base font-bold text-text">Fluxo por Categoria</h3>
+              <p style={{ fontSize: "11px", color: "var(--color-text-tertiary)", marginTop: 2 }}>
+                Distribuição de itens cadastrados
+              </p>
+            </div>
+            <div
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                borderRadius: "10px",
+                padding: "3px",
+              }}
+            >
+              <select
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--color-text-secondary)",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  padding: "4px 10px",
+                  outline: "none",
+                  cursor: "pointer",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                <option className="bg-surface text-text">Este período</option>
+                <option className="bg-surface text-text">Período anterior</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ width: "100%", height: 300 }}>
+            {barChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart
+                  data={barChartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--chart-grid)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: "var(--chart-text)", fontSize: 13, fontWeight: 600 }}
+                    axisLine={{ stroke: "var(--chart-grid)" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "var(--chart-text)", fontSize: 13 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "12px",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                    }}
+                    cursor={{ fill: "var(--chart-cursor)" }}
+                  />
+                  <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} maxBarSize={48}>
+                    {barChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>
+                  Nenhum dado disponível
+                </p>
+              </div>
+            )}
+          </div>
+        </NeuCard>
+
+        {/* Status Overview with Donut + Gauges */}
+        <NeuCard className="p-6 sm:p-8 flex flex-col items-center">
+          <div className="w-full flex items-center justify-between mb-6">
+            <h3 className="text-base font-bold text-text">Status Geral</h3>
+            <PieChart className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
+          </div>
+          <div className="flex flex-col items-center gap-3 mb-6">
+            <DonutChart
+              slices={[
+                {
+                  value: allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate))
+                    .length,
+                  color: "#16a34a",
+                  label: "Saudável",
+                },
+                {
+                  value: allItems.filter((i) => isLowStock(i)).length,
+                  color: "#ca8a04",
+                  label: "Crítico",
+                },
+                {
+                  value: allItems.filter((i) => isExpiringSoon(i.expiryDate)).length,
+                  color: "#dc2626",
+                  label: "Vencendo",
+                },
+              ].filter((s) => s.value > 0)}
+              size={140}
+              innerRadius={45}
+            />
+            <div className="w-full space-y-2.5">
+              {[
+                {
+                  label: "Saudável",
+                  color: "#16a34a",
+                  val: allItems.filter((i) => !isLowStock(i) && !isExpiringSoon(i.expiryDate))
+                    .length,
+                },
+                {
+                  label: "Estoque Baixo",
+                  color: "#ca8a04",
+                  val: allItems.filter((i) => isLowStock(i)).length,
+                },
+                {
+                  label: "Próx. Vencimento",
+                  color: "#dc2626",
+                  val: allItems.filter((i) => isExpiringSoon(i.expiryDate)).length,
+                },
+              ].map((s, di) => (
+                <div key={`${s.label}-${di}`} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        backgroundColor: s.color,
+                        opacity: 0.7,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-text-secondary)",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text)" }}>
+                    {s.val}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="w-full border-t border-border pt-6 mt-2">
+            <div className="grid grid-cols-3 gap-2">
+              <GaugeChart
+                value={healthPct}
+                size={110}
+                color="#2563eb"
+                label="SAÚDE"
+                subtitle={`${stats.saudavel} itens`}
+              />
+              <GaugeChart
+                value={coverPct}
+                size={110}
+                color="#16a34a"
+                label="COBERTURA"
+                subtitle={`${categories.length} cats`}
+              />
+              <GaugeChart
+                value={expiryPct}
+                size={110}
+                color="#ea580c"
+                label="VALIDADES"
+                subtitle={`${allItems.length - stats.proximoVencimento} ok`}
+              />
+            </div>
+          </div>
+        </NeuCard>
+      </div>
+
+      {/* Area Chart - Tendência do Estoque */}
+      <NeuCard className="p-6 sm:p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-base font-bold text-text">Evolução do Estoque</h3>
+            <p style={{ fontSize: "11px", color: "var(--color-text-tertiary)", marginTop: 2 }}>
+              Tendência de valor nos últimos 14 dias
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div style={{ width: 8, height: 8, borderRadius: "2px", background: "#2563eb" }} />
+              <span
+                style={{ fontSize: "10px", color: "var(--color-text-secondary)", fontWeight: 600 }}
+              >
+                Nível
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div style={{ width: 8, height: 8, borderRadius: "2px", background: "#16a34a" }} />
+              <span
+                style={{ fontSize: "10px", color: "var(--color-text-secondary)", fontWeight: 600 }}
+              >
+                Capital
+              </span>
+            </div>
+          </div>
+        </div>
+        <div style={{ width: "100%", minHeight: 240, height: 240 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={areaChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+              <XAxis
+                dataKey="dia"
+                tick={{ fill: "var(--chart-text)", fontSize: 13 }}
+                axisLine={{ stroke: "var(--chart-grid)" }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "var(--chart-text)", fontSize: 13 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "12px",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                  color: "var(--color-text)",
+                  fontSize: "13px",
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="valor"
+                stroke="#2563eb"
+                strokeWidth={2}
+                fill="url(#areaGrad1)"
+                dot={false}
+                activeDot={{ r: 4, fill: "#2563eb" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="capital"
+                stroke="#16a34a"
+                strokeWidth={2}
+                fill="url(#areaGrad2)"
+                dot={false}
+                activeDot={{ r: 4, fill: "#16a34a" }}
+              />
+              <defs>
+                <linearGradient id="areaGrad1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="areaGrad2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#16a34a" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#16a34a" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </NeuCard>
+
+      {/* Alertas */}
+      <NeuCard className="overflow-hidden">
+        <div className="p-6 sm:p-8 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-text">Alertas Críticos</h3>
+            <p style={{ fontSize: "11px", color: "var(--color-text-tertiary)", marginTop: 2 }}>
+              Itens que precisam de atenção imediata
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#dc2626",
+                animation: "ping 1.5s ease infinite",
+              }}
+            />
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "#dc2626",
+                letterSpacing: "0.1em",
+              }}
+            >
+              AO VIVO
+            </span>
+          </div>
+        </div>
+        <div style={{ maxHeight: 400, overflowY: "auto" }}>
+          {[...lowStockItems, ...expiringItems].length > 0 ? (
+            [...lowStockItems, ...expiringItems].slice(0, 8).map((item, idx) => {
+              const isExpiring = isExpiringSoon(item.expiryDate);
+              const uniqueKey = `${item.id}-${isExpiring ? "exp" : "low"}-${idx}`;
+              return (
+                <div
+                  key={uniqueKey}
+                  style={{
+                    padding: "16px 24px",
+                    borderBottom: "1px solid rgba(255,255,255,0.03)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "14px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        background: isExpiring ? "rgba(220,38,38,0.1)" : "rgba(202,138,4,0.1)",
+                      }}
+                    >
+                      {isExpiring ? (
+                        <Clock className="w-5 h-5" style={{ color: "#dc2626" }} />
+                      ) : (
+                        <TrendingDown className="w-5 h-5" style={{ color: "#ca8a04" }} />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-text truncate">{item.name}</p>
+                      <p
+                        style={{
+                          fontSize: "10px",
+                          color: "var(--color-text-tertiary)",
+                          fontWeight: 700,
+                          letterSpacing: "0.05em",
+                          marginTop: 2,
+                        }}
+                      >
+                        {isExpiring
+                          ? `Vence em ${Math.ceil((new Date(item.expiryDate!).getTime() - Date.now()) / 86400000)} dias`
+                          : `Estoque em ${Math.round(stockRatio(item))}% do mínimo`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    style={{
+                      padding: "8px 16px",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: "10px",
+                      color: "var(--color-text-secondary)",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      letterSpacing: "0.05em",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#2563eb";
+                      e.currentTarget.style.borderColor = "#2563eb";
+                      e.currentTarget.style.color = "white";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                      e.currentTarget.style.borderColor = "var(--color-border)";
+                      e.currentTarget.style.color = "rgba(255,255,255,0.5)";
+                    }}
+                  >
+                    RESOLVER
+                  </button>
+                </div>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                padding: "60px 20px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "16px",
+                  background: "rgba(22,163,74,0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Package className="w-7 h-7" style={{ color: "#16a34a" }} />
+              </div>
+              <p
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#16a34a",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                TUDO REGULARIZADO
+              </p>
+            </div>
+          )}
+        </div>
+      </NeuCard>
+
+      {/* ─── MODALS ─── */}
+      <Dialog open={showItemModal} onOpenChange={setShowItemModal}>
+        <DialogContent
+          className="max-w-lg bg-surface text-text border-border shadow-2xl"
+          style={{
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-text">Adicionar Novo Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            <div className="space-y-2">
+              <Label style={{ color: "var(--color-text-secondary)" }}>Categoria</Label>
+              <select
+                value={newItem.categoryId ?? ""}
+                onChange={(e) =>
+                  setNewItem({ ...newItem, categoryId: Number(e.target.value) || null })
+                }
+                style={{
+                  width: "100%",
+                  height: 40,
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "var(--color-text)",
+                  padding: "0 12px",
+                  fontSize: "14px",
+                  outline: "none",
+                }}
+              >
+                <option value="" className="bg-surface text-text-secondary">
+                  Selecione categoria
+                </option>
+                {categories.map((cat) => (
+                  <option
+                    key={cat.id}
+                    value={cat.id}
+                    className="bg-surface text-text"
+                  >
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              {categorySuggestion && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: "#60a5fa",
+                      background: "rgba(37,99,235,0.15)",
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    Sugestão: {categorySuggestion.categoryName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewItem({ ...newItem, categoryId: categorySuggestion.categoryId });
+                      setCategorySuggestion(null);
+                    }}
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: "#60a5fa",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    USAR
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label style={{ color: "var(--color-text-secondary)" }}>Nome do Item</Label>
+              <Input
+                placeholder="Ex: Peito de Frango"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                style={{
+                  ...(itemSuggestion
+                    ? { borderColor: "#ca8a04", background: "rgba(202,138,4,0.05)" }
+                    : {}),
+                }}
+              />
+              {itemSuggestion && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: "#ca8a04",
+                      background: "rgba(202,138,4,0.15)",
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    {itemSuggestion.message}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewItem({ ...newItem, name: itemSuggestion.name });
+                      setItemSuggestion(null);
+                    }}
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: "#ca8a04",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    CORRIGIR
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label style={{ color: "var(--color-text-secondary)" }}>Qtd. Inicial</Label>
+                <Input
+                  type="number"
+                  value={newItem.currentQuantity}
+                  onChange={(e) => setNewItem({ ...newItem, currentQuantity: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label style={{ color: "var(--color-text-secondary)" }}>Unidade</Label>
+                <select
+                  value={newItem.unit}
+                  onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                  style={{
+                    width: "100%",
+                    height: 40,
+                    borderRadius: "10px",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "var(--color-text)",
+                    padding: "0 12px",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                >
+                  {KNOWN_UNITS.map((u) => (
+                    <option key={u} value={u} className="bg-surface text-text">
+                      {u} - {UNIT_LABELS[u]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label style={{ color: "var(--color-text-secondary)" }}>Est. Mínimo</Label>
+                <Input
+                  type="number"
+                  value={newItem.minStock}
+                  onChange={(e) => setNewItem({ ...newItem, minStock: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <div
+            className="flex justify-end gap-3 pt-4"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <button
+              onClick={resetItemForm}
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={addItem}
+              style={{
+                padding: "8px 24px",
+                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                border: "none",
+                borderRadius: "12px",
+                color: "var(--color-text)",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 4px 16px rgba(37,99,235,0.25)",
+              }}
+            >
+              Salvar Item
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCatModal} onOpenChange={setShowCatModal}>
+        <DialogContent
+          className="max-w-md bg-surface text-text border-border shadow-2xl"
+          style={{
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-text">Nova Categoria</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2 relative">
+              <Label style={{ color: "var(--color-text-secondary)" }}>Nome da Categoria</Label>
+              <Input
+                placeholder="Ex: Carnes, Bebidas..."
+                value={newCatName}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewCatName(val);
+                  setCatSuggestions(suggestCategories(val));
+                  setCatSuggestionIndex(-1);
+                }}
+              />
+              {catSuggestions.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    zIndex: 50,
+                    width: "100%",
+                    marginTop: 4,
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {catSuggestions.map((s, i) => (
+                    <button
+                      key={s}
+                      type="button"
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 16px",
+                        fontSize: "13px",
+                        color:
+                          i === catSuggestionIndex
+                            ? "var(--color-text)"
+                            : "var(--color-text-secondary)",
+                        background: i === catSuggestionIndex ? "#2563eb" : "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (i !== catSuggestionIndex)
+                          e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (i !== catSuggestionIndex)
+                          e.currentTarget.style.background = "transparent";
+                      }}
+                      onClick={() => {
+                        setNewCatName(s);
+                        setCatSuggestions([]);
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <Label style={{ color: "var(--color-text-secondary)" }}>Identificador Visual</Label>
+              <div className="flex gap-3 flex-wrap">
+                {CATEGORY_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setNewCatColor(c)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      backgroundColor: c,
+                      border:
+                        newCatColor === c
+                          ? "3px solid rgba(255,255,255,0.3)"
+                          : "3px solid transparent",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      transform: newCatColor === c ? "scale(1.15)" : "scale(1)",
+                      opacity: newCatColor === c ? 1 : 0.6,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div
+            className="flex justify-end gap-3 pt-4"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <button
+              onClick={() => setShowCatModal(false)}
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={addCategory}
+              style={{
+                padding: "8px 24px",
+                backgroundColor: newCatColor,
+                border: "none",
+                borderRadius: "12px",
+                color: "var(--color-text)",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: `0 4px 16px ${newCatColor}40`,
+              }}
+            >
+              Criar Categoria
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {allItems.length === 0 && <OnboardingGuide />}
+      <style>{`
+				@keyframes ping {
+					0%, 100% { opacity: 1; }
+					50% { opacity: 0.3; }
+				}
+				@keyframes fadeIn {
+					from { opacity: 0; }
+					to { opacity: 1; }
+				}
+			`}</style>
+    </div>
+  );
 }

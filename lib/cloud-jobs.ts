@@ -1,9 +1,9 @@
 /**
  * Cloud Jobs / Duty Cycle Structure
- * 
+ *
  * Este módulo define a estrutura para funções em nuvem (cron jobs)
  * que serão executadas periodicamente via Cloudflare Workers ou similar.
- * 
+ *
  * Exemplos de uso:
  * - Geração de relatórios automáticos
  * - Alertas de estoque baixo via email/SMS
@@ -77,8 +77,8 @@ export const cloudJobs: CloudJob[] = [
 
 // Função para executar todos os jobs habilitados
 export async function runCloudJobs() {
-  const enabledJobs = cloudJobs.filter(job => job.enabled);
-  
+  const enabledJobs = cloudJobs.filter((job) => job.enabled);
+
   for (const job of enabledJobs) {
     try {
       console.log(`[Cloud Jobs] Executando: ${job.name}`);

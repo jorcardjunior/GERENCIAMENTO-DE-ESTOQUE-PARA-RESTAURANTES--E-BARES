@@ -1,0 +1,621 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { 
+  Package, ArrowRight, Check, Star, BarChart3, Shield, Clock, Users, Zap, 
+  ChevronRight, Play, TrendingUp, AlertTriangle, Layers, LayoutDashboard, 
+  Lock, HelpCircle, Video, MessageCircle, DollarSign, Sparkles, Phone
+} from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Section, FadeInView, StaggerGrid, GridItem } from "@/lib/animations";
+
+// ==========================================
+// HOOK DE AUTENTICAÇÃO
+// ==========================================
+function useAuthStatus() {
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    fetch("/api/auth/me", { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, []);
+
+  return { user };
+}
+
+// ==========================================
+// HEADER COMPACTO
+// ==========================================
+function Header() {
+  return (
+    <header role="banner" className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <Link href="/" className="flex items-center gap-3 group" aria-label="EstoqueRest - Página inicial">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/30 transition-shadow" aria-hidden="true">
+              <Package className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-base font-bold text-white tracking-tight">
+              Estoque<span className="text-blue-400">Rest</span>
+            </span>
+          </Link>
+
+          <nav className="flex items-center gap-3" aria-label="Navegação principal">
+            <Link 
+              href="/auth/login" 
+              className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-white/5"
+            >
+              Entrar
+            </Link>
+            <Link 
+              href="/auth/register" 
+              className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all hover:shadow-lg hover:shadow-blue-500/25"
+            >
+              Teste Grátis
+            </Link>
+            <ThemeToggle />
+          </nav>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function HeroSection({ user }: { user: any }) {
+  return (
+    <section className="relative min-h-dvh flex items-center pt-28 pb-20 overflow-hidden bg-slate-950" aria-labelledby="hero-title">
+      <div aria-hidden="true" className="absolute inset-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-br from-blue-600/10 to-indigo-600/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-600/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 left-1/4 w-64 h-64 border border-blue-400/5 rounded-full" />
+        <div className="absolute bottom-1/3 right-1/3 w-48 h-48 border border-indigo-400/5 rounded-full" />
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-5 py-2.5 mb-8" role="status">
+            <Zap className="w-4 h-4 text-blue-400" aria-hidden="true" />
+            <span className="text-blue-300 text-sm font-medium">Sistema de Gestão de Estoque Profissional</span>
+          </div>
+
+          <h1 id="hero-title" className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.1] mb-8 tracking-tight">
+            Controle seu estoque
+            <br />
+            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+              com inteligência
+            </span>
+          </h1>
+
+          <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Gerencie insumos, evite desperdícios, acompanhe vencimentos e tenha total 
+            controle do capital investido no seu restaurante.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+            {user ? (
+              <Link href="/app/dashboard" className="group inline-flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all hover:shadow-xl hover:shadow-blue-500/20">
+                <LayoutDashboard className="w-5 h-5" />
+                Ir para Dashboard
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            ) : (
+              <>
+                <Link href="/auth/register" className="group inline-flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all hover:shadow-xl hover:shadow-blue-500/25">
+                  Começar Teste Grátis
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+                <Link href="/auth/login" className="inline-flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all">
+                  <Play className="w-5 h-5" />
+                  Entrar
+                </Link>
+              </>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            {[
+              { value: "10k+", label: "Estabelecimentos" },
+              { value: "500k+", label: "Itens gerenciados" },
+              { value: "98%", label: "Satisfação" },
+              { value: "40%", label: "Menos desperdício" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5 hover:bg-white/[0.06] transition-all">
+                <div className="text-2xl sm:text-3xl font-black text-white mb-1">{stat.value}</div>
+                <div className="text-slate-500 text-sm">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ==========================================
+// FEATURES
+// ==========================================
+function FeaturesSection() {
+  const features = [
+    { icon: Package, title: "Gestão de Estoque", description: "Cadastre e monitore todos os itens com busca rápida e filtros.", color: "bg-blue-500" },
+    { icon: AlertTriangle, title: "Alertas Inteligentes", description: "Notificações automáticas sobre vencimento e estoque baixo.", color: "bg-amber-500" },
+    { icon: BarChart3, title: "Dashboard Completo", description: "Indicadores em tempo real e visão geral do seu estoque.", color: "bg-emerald-500" },
+    { icon: Clock, title: "Controle de Validade", description: "Acompanhe datas de vencimento e evite perdas.", color: "bg-rose-500" },
+    { icon: Users, title: "Multiusuário", description: "Permissões para sua equipe trabalhar em conjunto.", color: "bg-violet-500" },
+    { icon: TrendingUp, title: "Relatórios Avançados", description: "Gere relatórios e exporte dados para análise.", color: "bg-cyan-500" },
+  ];
+
+  return (
+    <Section id="recursos" className="py-24 bg-slate-900/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInView className="text-center max-w-3xl mx-auto mb-20">
+          <span className="inline-block text-blue-400 text-sm font-semibold tracking-wider uppercase mb-4">Funcionalidades</span>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-6">Tudo que você precisa</h2>
+          <p className="text-slate-400 text-lg">Uma plataforma completa para gestão profissional de estoque</p>
+        </FadeInView>
+
+        <StaggerGrid className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feature) => (
+            <GridItem key={feature.title}>
+              <div className="group bg-slate-900 border border-slate-800 rounded-3xl p-8 hover:border-slate-700 transition-all duration-300 hover:-translate-y-1">
+                <div className={`w-12 h-12 ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`} aria-hidden="true">
+                  <feature.icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                <p className="text-slate-400 leading-relaxed">{feature.description}</p>
+              </div>
+            </GridItem>
+          ))}
+        </StaggerGrid>
+      </div>
+    </Section>
+  );
+}
+
+// ==========================================
+// PLANOS - SAQUINHO DE DINHEIRO
+// ==========================================
+function PricingSection({ user }: { user: any }) {
+  const plans = [
+    {
+      name: "Mensal",
+      price: "97,00",
+      period: "mês",
+      description: "Essencial para pequenos negócios",
+      features: ["1 estabelecimento", "Até 500 itens", "Controle básico", "2 usuários"],
+      popular: false,
+      discount: null,
+    },
+    {
+      name: "Semestral",
+      price: "79,90",
+      period: "mês",
+      description: "O equilíbrio perfeito para crescer",
+      features: ["3 estabelecimentos", "Até 2.000 itens", "Alertas inteligentes", "Até 5 usuários"],
+      popular: false,
+      discount: "18% OFF",
+    },
+    {
+      name: "Anual",
+      price: "57,90",
+      period: "mês",
+      description: "Gestão profissional completa",
+      features: ["Até 10 estabelecimentos", "Itens ilimitados", "Relatórios avançados", "Usuários ilimitados"],
+      popular: true,
+      discount: "40% OFF",
+    },
+  ];
+
+  return (
+    <Section id="planos" className="py-24 bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInView className="text-center max-w-3xl mx-auto mb-20">
+          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-5 py-2.5 mb-6">
+            <DollarSign className="w-5 h-5 text-amber-400" />
+            <span className="text-amber-300 text-sm font-bold">ESCOLHA SEU PLANO</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-6">
+            Planos acessíveis
+          </h2>
+          <p className="text-slate-400 text-lg">
+            Comece com teste grátis de 15 dias e escolha o melhor plano para você
+          </p>
+        </FadeInView>
+
+        <StaggerGrid className="grid md:grid-cols-3 gap-8 items-start">
+          {plans.map((plan) => (
+            <GridItem key={plan.name}>
+              <div
+                className={`relative rounded-3xl p-8 ${
+                  plan.popular
+                    ? "bg-gradient-to-b from-amber-500 to-amber-600 border-2 border-amber-300 shadow-2xl shadow-amber-500/20 scale-105 lg:scale-110 z-10"
+                    : "bg-slate-800 border border-slate-700 hover:border-slate-600"
+                } transition-all duration-300`}
+              >
+                {plan.discount && (
+                  <div className="absolute -top-3 right-6 bg-red-500 text-white text-xs font-black px-3 py-1 rounded-full">
+                    {plan.discount}
+                  </div>
+                )}
+                
+                <div className="mb-6">
+                  <h3 className="text-2xl font-bold text-white mb-1">{plan.name}</h3>
+                  <p className={plan.popular ? "text-amber-100 text-sm" : "text-slate-400 text-sm"}>{plan.description}</p>
+                </div>
+
+                <div className="mb-8">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-slate-400 text-lg">R$</span>
+                    <span className="text-5xl font-black text-white">{plan.price}</span>
+                  </div>
+                  <span className={`text-sm ${plan.popular ? "text-amber-200" : "text-slate-400"}`}>/{plan.period}</span>
+                </div>
+
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className={`flex items-start gap-3 ${plan.popular ? "text-amber-100" : "text-slate-300"}`}>
+                      <Check className={`w-5 h-5 mt-0.5 shrink-0 ${plan.popular ? "text-amber-200" : "text-emerald-400"}`} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                {user ? (
+                  <Link href="/app/dashboard" className="block w-full text-center bg-white/20 text-white font-bold py-3.5 rounded-xl border border-white/20 hover:bg-white/30 transition-all">
+Ir para Tela Inicial
+                  </Link>
+                ) : (
+                  <Link
+                    href="/auth/register"
+                    className={`block w-full text-center font-bold py-3.5 rounded-xl transition-all ${
+                      plan.popular
+                        ? "bg-white text-amber-600 hover:bg-slate-100 shadow-lg"
+                        : "bg-blue-600 text-white hover:bg-blue-500"
+                    }`}
+                  >
+                    Começar Teste Grátis
+                  </Link>
+                )}
+              </div>
+            </GridItem>
+          ))}
+        </StaggerGrid>
+      </div>
+    </Section>
+  );
+}
+
+// ==========================================
+// VIDEO PLACEHOLDER
+// ==========================================
+function VideoSection() {
+  return (
+    <Section className="py-24 bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInView className="text-center max-w-3xl mx-auto mb-16">
+          <span className="inline-block text-blue-400 text-sm font-semibold tracking-wider uppercase mb-4">Demo</span>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-6">
+            Veja como funciona
+          </h2>
+          <p className="text-slate-400 text-lg">
+            Assista ao vídeo e conheça todas as funcionalidades do EstoqueRest
+          </p>
+        </FadeInView>
+
+        <FadeInView delay={0.15} className="max-w-4xl mx-auto">
+          <div className="relative aspect-video bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl overflow-hidden border border-slate-700 group cursor-pointer hover:border-slate-600 transition-all">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center mx-auto mb-4 group-hover:bg-white/20 transition-all group-hover:scale-110">
+                  <Play className="w-8 h-8 text-white ml-1" />
+                </div>
+                <p className="text-white font-bold text-lg">Assista ao vídeo</p>
+                <p className="text-slate-400 text-sm mt-1">Duração: 3:45 minutos</p>
+              </div>
+            </div>
+            
+            <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-white/20 rounded-tl-lg" />
+            <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-white/20 rounded-tr-lg" />
+            <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-white/20 rounded-bl-lg" />
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-white/20 rounded-br-lg" />
+          </div>
+        </FadeInView>
+      </div>
+    </Section>
+  );
+}
+
+// ==========================================
+// FAQ - PERGUNTAS FREQUENTES
+// ==========================================
+function FAQSection() {
+  const faqs = [
+    {
+      question: "Como funciona o teste grátis de 15 dias?",
+      answer: "Você pode usar todas as funcionalidades do plano Profissional por 15 dias sem pagar nada. Não é necessário cartão de crédito. Após o período, escolha o plano que mais se adequa ao seu negócio."
+    },
+    {
+      question: "Posso mudar de plano depois?",
+      answer: "Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento. A mudança será aplicada no próximo ciclo de cobrança."
+    },
+    {
+      question: "O sistema funciona no celular?",
+      answer: "Sim! O EstoqueRest é uma aplicação web responsiva, funcionando perfeitamente em computadores, tablets e smartphones, sem necessidade de instalar nenhum aplicativo."
+    },
+    {
+      question: "Como funciona o controle de estoque?",
+      answer: "Você pode cadastrar categorias e itens, definir quantidades mínimas, acompanhar validades e receber alertas automáticos quando produtos estiverem acabando ou próximos ao vencimento."
+    },
+    {
+      question: "Posso gerenciar mais de um estabelecimento?",
+      answer: "Sim. O plano Mensal inclui 1 estabelecimento, o Semestral até 3, e o Anual permite gerenciar até 10 estabelecimentos simultaneamente com controle centralizado.",
+    },
+    {
+      question: "Meus dados estão seguros?",
+      answer: "Absolutamente. Utilizamos criptografia em todos os dados, fazer backups diários automáticos e seguimos as melhores práticas de segurança da indústria."
+    },
+    {
+      question: "Como funciona o suporte?",
+      answer: "Oferecemos suporte por e-mail para todos os planos. Planos Semestrais e Anuais contam com suporte prioritário via chat em horário comercial. Plano Anual tem suporte dedicado."
+    },
+    {
+      question: "Posso cancelar a qualquer momento?",
+      answer: "Sim, não há fidelidade. Você pode cancelar sua assinatura a qualquer momento e continuar usando até o final do período já pago."
+    }
+  ];
+
+  return (
+    <Section id="faq" className="py-24 bg-slate-900">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInView className="text-center mb-20">
+          <span className="inline-block text-emerald-400 text-sm font-semibold tracking-wider uppercase mb-4">FAQ</span>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-6">
+            Perguntas Frequentes
+          </h2>
+          <p className="text-slate-400 text-lg">
+            Tire suas dúvidas antes de começar
+          </p>
+        </FadeInView>
+
+        <StaggerGrid className="space-y-4">
+          {faqs.map((faq, index) => (
+            <GridItem key={index}>
+              <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden hover:border-slate-600 transition-all group">
+                <div className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
+                      <HelpCircle className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg mb-2 group-hover:text-blue-300 transition-colors">
+                        {faq.question}
+                      </h3>
+                      <p className="text-slate-400 leading-relaxed">
+                        {faq.answer}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </GridItem>
+          ))}
+        </StaggerGrid>
+      </div>
+    </Section>
+  );
+}
+
+// ==========================================
+// DEPOIMENTOS
+// ==========================================
+function TestimonialsSection() {
+  const testimonials = [
+    {
+      name: "Carlos Mendes",
+      role: "Proprietário — Restaurante Sabor Caseiro",
+      avatar: "CM",
+      quote: "Reduzimos o desperdício em 40% nos primeiros meses. O alerta de vencimento nos salvou de perder centenas de reais em insumos.",
+      rating: 5,
+    },
+    {
+      name: "Ana Lúcia",
+      role: "Gerente — Bar do Zé",
+      avatar: "AL",
+      quote: "A interface é intuitiva e o preenchimento de estoque ficou muito mais rápido. Minha equipe inteira aprendeu a usar em um dia.",
+      rating: 5,
+    },
+    {
+      name: "Ricardo Oliveira",
+      role: "CEO — Grupo Oliveira Restaurantes",
+      avatar: "RO",
+      quote: "Usamos em 5 unidades diferentes. O plano Enterprise nos deu a flexibilidade que precisávamos para padronizar a gestão.",
+      rating: 5,
+    },
+  ];
+
+  return (
+    <Section className="py-24 bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInView className="text-center max-w-3xl mx-auto mb-20">
+          <span className="inline-block text-emerald-400 text-sm font-semibold tracking-wider uppercase mb-4">Depoimentos</span>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-6">Quem usa, recomenda</h2>
+          <p className="text-slate-400 text-lg">Veja o que nossos clientes dizem sobre o EstoqueRest</p>
+        </FadeInView>
+
+        <StaggerGrid className="grid md:grid-cols-3 gap-8">
+          {testimonials.map((testimonial) => (
+            <GridItem key={testimonial.name}>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 hover:border-slate-700 transition-all">
+                <div className="flex gap-1 mb-6">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <p className="text-slate-300 mb-8 leading-relaxed text-base">&ldquo;{testimonial.quote}&rdquo;</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                    {testimonial.avatar}
+                  </div>
+                  <div>
+                    <div className="text-white font-bold">{testimonial.name}</div>
+                    <div className="text-slate-400 text-sm">{testimonial.role}</div>
+                  </div>
+                </div>
+              </div>
+            </GridItem>
+          ))}
+        </StaggerGrid>
+      </div>
+    </Section>
+  );
+}
+
+// ==========================================
+// CTA FINAL
+// ==========================================
+function CTASection() {
+  return (
+    <Section className="py-24 bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInView>
+          <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-12 sm:p-16 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.1),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,255,255,0.05),transparent_50%)]" />
+          
+          <div className="relative text-center">
+            <h2 className="text-3xl sm:text-4xl font-black text-white mb-6">
+              Pronto para transformar seu estoque?
+            </h2>
+            <p className="text-blue-100 text-lg max-w-2xl mx-auto mb-10">
+              Comece hoje com 15 dias de teste grátis. Sem compromisso, sem cartão de crédito.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/auth/register" className="inline-flex items-center justify-center gap-3 bg-white text-blue-600 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-100 transition-all shadow-2xl">
+                Começar Teste Grátis
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link href="/auth/login" className="inline-flex items-center justify-center gap-3 bg-white/10 text-white px-8 py-4 rounded-2xl font-bold text-lg border border-white/20 hover:bg-white/20 transition-all">
+                Já tenho conta
+              </Link>
+            </div>
+          </div>
+        </div>
+        </FadeInView>
+      </div>
+    </Section>
+  );
+}
+
+// ==========================================
+// NAVEGAÇÃO NO RODAPÉ
+// ==========================================
+function FooterNav() {
+  const links = [
+    { label: "FUNCIONALIDADES", href: "#recursos" },
+    { label: "PREÇOS", href: "#planos" },
+    { label: "ENTRAR", href: "/auth/login" },
+    { label: "SUPORTE", href: "mailto:suporte@estoquest.com" },
+    { label: "TERMOS DE USO", href: "#" },
+  ];
+
+  return (
+    <div className="bg-slate-950 border-t border-slate-800/60 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          {links.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="text-xs uppercase tracking-wider text-slate-400 hover:text-blue-400 transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// RODAPÉ
+// ==========================================
+function Footer() {
+  return (
+    <footer role="contentinfo" className="bg-slate-950 border-t border-slate-800/60 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center" aria-hidden="true">
+              <Package className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-white">
+              Estoque<span className="text-blue-400">Rest</span>
+            </span>
+          </div>
+          <p className="text-slate-500 text-sm">
+            © 2024 EstoqueRest. Todos os direitos reservados.
+          </p>
+          <div className="flex gap-6">
+            <Link href="/auth/login" className="text-slate-400 hover:text-white transition-colors text-sm">Login</Link>
+            <Link href="/auth/register" className="text-slate-400 hover:text-white transition-colors text-sm">Cadastrar</Link>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ==========================================
+// BOTÃO FLUTUANTE WHATSAPP
+// ==========================================
+function FloatingContactButton() {
+  return (
+    <a
+      href="https://wa.me/5513997768299?text=Ol%C3%A1%2C%20ainda%20tenho%20d%C3%BAvidas%20sobre%20o%20sistema"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Falar no WhatsApp"
+      className="fixed bottom-6 right-6 z-50 group inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold text-sm px-4 py-3 rounded-full shadow-lg hover:shadow-xl hover:shadow-[#25D366]/40 hover:scale-105 transition-all duration-300"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-5 h-5 fill-white shrink-0"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+      </svg>
+      <span className="hidden sm:inline">Ainda tem dúvidas?</span>
+    </a>
+  );
+}
+
+// ==========================================
+// PÁGINA PRINCIPAL
+// ==========================================
+export default function LandingPage() {
+  const { user } = useAuthStatus();
+
+  return (
+    <div className="min-h-screen bg-slate-950">
+      <Header />
+      <HeroSection user={user} />
+      <FeaturesSection />
+      <VideoSection />
+      <PricingSection user={user} />
+      <TestimonialsSection />
+      <FAQSection />
+      <CTASection />
+      <FooterNav />
+      <Footer />
+      <FloatingContactButton />
+    </div>
+  );
+}

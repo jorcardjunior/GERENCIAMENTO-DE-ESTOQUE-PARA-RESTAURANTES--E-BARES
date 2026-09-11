@@ -1,11 +1,16 @@
-import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { categories, items } from "@/db/schema";
-import { getSession } from "@/lib/auth";
+import { categories } from "@/db/schema";
+import { logAudit } from "@/lib/audit";
+import { getSession } from "@/lib/auth-server";
 import { normalizeCategoryName } from "@/lib/validation";
-import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await getSession(request.headers);
+  if (!session) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
   const result = await db.query.categories.findMany({
     with: {
       items: {
@@ -22,7 +27,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const session = await getSession(request.headers);
   if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
@@ -38,8 +43,16 @@ export async function POST(request: Request) {
 
   const [category] = await db
     .insert(categories)
-    .values({ name, color, createdBy: session.id })
+    .values({ name, color, createdBy: session.legacyUserId })
     .returning();
+
+  await logAudit({
+    action: "CREATE",
+    tableName: "categories",
+    recordId: String(category.id),
+    userId: session.userId,
+    newValues: { name, color },
+  });
 
   return NextResponse.json(category);
 }

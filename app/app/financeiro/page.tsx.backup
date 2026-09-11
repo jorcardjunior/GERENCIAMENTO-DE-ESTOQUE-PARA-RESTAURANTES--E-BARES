@@ -1,0 +1,523 @@
+"use client";
+
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
+import { 
+  DollarSign, 
+  TrendingUp, 
+  TrendingDown, 
+  Plus, 
+  PieChart, 
+  Calendar,
+  Wallet,
+  ArrowUpRight,
+  Download,
+  Sparkles,
+  Search,
+  Tag,
+  X,
+  Building2,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle
+} from "lucide-react";
+
+import { BarChart, DonutChart, StatCard } from "@/components/charts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+type Expense = {
+  id: number;
+  description: string;
+  amount: string;
+  date: string;
+  categoryId: number;
+  estabelecimentoId: number;
+  paid: boolean;
+  category?: {
+    id: number;
+    name: string;
+    color: string;
+  };
+};
+
+type ExpenseCategory = {
+  id: number;
+  name: string;
+  color: string;
+  estabelecimentoId: number;
+};
+
+type Estabelecimento = {
+  id: number;
+  nome: string;
+};
+
+export default function FinanceiroPage() {
+  const { user } = useAuth();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [estabelecimentos, setEstabelecimentos] = useState<Estabelecimento[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [selectedEstabId, setSelectedEstabId] = useState<number | "">("");
+  const [showModal, setShowModal] = useState(false);
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  
+  const [newExpense, setNewExpense] = useState({
+    description: "",
+    amount: "",
+    date: new Date().toISOString().split("T")[0],
+    categoryId: "" as number | "",
+    paid: false
+  });
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const queryParams = selectedEstabId ? `?estabelecimentoId=${selectedEstabId}` : "";
+      const [expRes, catRes, estabRes] = await Promise.all([
+        fetch(`/api/expenses${queryParams}`),
+        fetch(`/api/expense-categories${queryParams}`),
+        fetch("/api/estabelecimentos"),
+      ]);
+      
+      if (expRes.ok) setExpenses(await expRes.json());
+      if (catRes.ok) setCategories(await catRes.json());
+      if (estabRes.ok) {
+        const estabs = await estabRes.json();
+        setEstabelecimentos(estabs);
+        if (estabs.length > 0 && !selectedEstabId) {
+          setSelectedEstabId(estabs[0].id);
+        }
+      }
+    } catch (err) {
+      toast.error("Erro ao carregar dados financeiros");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedEstabId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const totals = useMemo(() => {
+    const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const paid = expenses.filter(e => e.paid).reduce((s, e) => s + Number(e.amount), 0);
+    const pending = total - paid;
+    return { total, paid, pending };
+  }, [expenses]);
+
+  const formatCurrency = (val: number) =>
+    val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const categoryData = useMemo(() => {
+    return categories.map(cat => ({
+      label: cat.name,
+      value: expenses.filter(e => e.categoryId === cat.id).reduce((s, e) => s + Number(e.amount), 0),
+      color: cat.color
+    })).filter(c => c.value > 0);
+  }, [expenses, categories]);
+
+  async function handleAddCategory() {
+    if (!newCatName.trim() || !selectedEstabId) {
+      toast.error("Preencha o nome da categoria e selecione um estabelecimento");
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const colors = ["#ef4444", "#22c55e", "#06b6d4", "#f43f5e", "#8b5cf6", "#f97316", "#3b82f6", "#6366f1"];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      
+      const res = await fetch("/api/expense-categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCatName.trim(),
+          color: randomColor,
+          estabelecimentoId: selectedEstabId,
+        }),
+      });
+      
+      if (!res.ok) throw new Error("Erro ao criar categoria");
+      
+      const category = await res.json();
+      setCategories([...categories, category]);
+      setNewExpense({ ...newExpense, categoryId: category.id });
+      setNewCatName("");
+      setShowAddCat(false);
+      toast.success("Categoria adicionada!");
+    } catch (err) {
+      toast.error("Erro ao adicionar categoria");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveExpense() {
+    if (!newExpense.description || !newExpense.amount || !newExpense.categoryId || !selectedEstabId) {
+      toast.error("Preencha os campos obrigatórios");
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newExpense,
+          estabelecimentoId: selectedEstabId,
+        }),
+      });
+      
+      if (!res.ok) throw new Error("Erro ao salvar despesa");
+      
+      const expense = await res.json();
+      // Need to find category object to append to list for UI consistency
+      const cat = categories.find(c => c.id === expense.categoryId);
+      setExpenses([{ ...expense, category: cat }, ...expenses]);
+      
+      setShowModal(false);
+      toast.success("Despesa registrada com sucesso!");
+      setNewExpense({
+        description: "",
+        amount: "",
+        date: new Date().toISOString().split("T")[0],
+        categoryId: "",
+        paid: false
+      });
+    } catch (err) {
+      toast.error("Erro ao salvar despesa");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading && expenses.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 max-w-[1400px] mx-auto p-2">
+      {/* Header Analysis */}
+      <div 
+        className="animate-[fadeInDown_0.3s_ease-out] glass border-brand-500/20 p-8 rounded-[2.5rem] relative overflow-hidden group"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-600/10 via-violet-600/10 to-brand-600/10 blur-3xl opacity-50" />
+        <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-3xl bg-brand-600 flex items-center justify-center shadow-xl shadow-brand-500/30">
+              <TrendingUp className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold text-brand-600 bg-brand-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest">Insights Financeiros</span>
+                <Sparkles className="w-3 h-3 text-brand-500" />
+              </div>
+              <h1 className="text-2xl font-black text-text tracking-tight">Análise Financeira</h1>
+              <div className="flex items-center gap-4 mt-1">
+                <p className="text-sm text-text-tertiary">Balanço geral de gastos.</p>
+                <div className="flex items-center gap-2 px-3 py-1 bg-surface-tertiary rounded-lg border border-border">
+                  <Building2 className="w-3.5 h-3.5 text-text-tertiary" />
+                  <select 
+                    value={selectedEstabId}
+                    onChange={(e) => setSelectedEstabId(Number(e.target.value))}
+                    className="bg-transparent border-none text-[11px] font-bold text-text-secondary outline-none cursor-pointer"
+                  >
+                    {estabelecimentos.map(e => (
+                      <option key={e.id} value={e.id}>{e.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="text-center px-6 py-3 bg-surface/50 rounded-2xl border border-border">
+              <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-1">Saída Mensal</p>
+              <p className="text-xl font-black text-text">{formatCurrency(totals.total)}</p>
+            </div>
+            <button 
+              onClick={() => setShowModal(true)}
+              className="px-6 py-4 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-2xl shadow-xl shadow-brand-500/20 transition-all flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" /> Registrar Gasto
+            </button>
+          </div>
+        </div>
+        </div>
+
+      {/* Bento Grid Analytics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
+        
+        {/* Main Spending Bar Chart */}
+        <div 
+          className="animate-[fadeInScale_0.3s_ease-out] md:col-span-4 bg-surface rounded-[2.5rem] border border-border p-8 flex flex-col shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-lg font-bold text-text">Gastos por Categoria</h3>
+              <p className="text-xs text-text-tertiary">Distribuição total acumulada</p>
+            </div>
+          </div>
+          <div className="flex-1 min-h-[300px]">
+            {categoryData.length > 0 ? (
+              <BarChart
+                data={categoryData}
+                color="var(--color-brand-500)"
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center opacity-30">
+                <PieChart className="w-12 h-12 mb-4" />
+                <p className="text-sm">Sem dados para exibir</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Totals Stat Cards */}
+        <div className="md:col-span-2 flex flex-col gap-6">
+          <StatCard label="Total Pago" value={formatCurrency(totals.paid)} icon={Wallet} gradient="bg-emerald-500/10 text-emerald-500" />
+          <StatCard label="A Pagar" value={formatCurrency(totals.pending)} icon={TrendingDown} gradient="bg-rose-500/10 text-rose-500" />
+          
+          <div 
+            className="bg-brand-600 rounded-[2rem] p-6 text-white shadow-xl shadow-brand-500/20"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">Saldo Operacional</p>
+              <ArrowUpRight className="w-5 h-5 opacity-80" />
+            </div>
+            <p className="text-2xl font-black mb-1">{formatCurrency(totals.paid * 1.45)}</p>
+            <p className="text-[10px] font-medium opacity-60">Estimativa baseada em faturamento</p>
+          </div>
+        </div>
+
+        {/* Category Breakdown Donut */}
+        <div 
+          className="animate-[fadeInUp_0.3s_ease-out] md:col-span-2 lg:col-span-2 bg-surface rounded-[2.5rem] border border-border p-8 shadow-sm"
+        >
+          <h3 className="text-base font-bold text-text mb-8 flex items-center gap-2">
+            <PieChart className="w-4 h-4 text-brand-500" /> Distribuição de Gastos
+          </h3>
+          <div className="flex flex-col items-center gap-8">
+            {categoryData.length > 0 ? (
+              <>
+                <DonutChart
+                  slices={categoryData}
+                  size={200}
+                  innerRadius={65}
+                />
+                <div className="w-full space-y-3 px-4">
+                  {categoryData.map(s => (
+                    <div key={s.label} className="flex items-center justify-between group">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                        <span className="text-xs text-text-secondary font-bold group-hover:text-brand-600 transition-colors">{s.label}</span>
+                      </div>
+                      <span className="text-xs font-black text-text tabular-nums">{Math.round((s.value / (totals.total || 1)) * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="py-20 text-center opacity-30">
+                <Tag className="w-12 h-12 mx-auto mb-4" />
+                <p className="text-sm">Nenhuma categoria</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Transaction History Table */}
+        <div 
+          className="animate-[fadeInUp_0.3s_ease-out] md:col-span-4 lg:col-span-4 bg-surface rounded-[2.5rem] border border-border shadow-sm flex flex-col overflow-hidden"
+        >
+          <div className="p-8 border-b border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-black text-text tracking-tight">Histórico de Movimentações</h3>
+              <p className="text-xs text-text-tertiary">Últimos registros financeiros</p>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+              <input 
+                type="text" 
+                placeholder="Buscar gasto..." 
+                className="w-full pl-10 pr-4 py-2.5 bg-surface-tertiary rounded-xl border-none text-xs focus:ring-2 focus:ring-brand-500/50 outline-none"
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-x-auto">
+            {expenses.length > 0 ? (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-surface-tertiary/50 border-b border-border">
+                    <th className="text-left px-8 py-4 text-[10px] font-black text-text-tertiary uppercase tracking-widest">Descrição</th>
+                    <th className="text-left px-4 py-4 text-[10px] font-black text-text-tertiary uppercase tracking-widest">Categoria</th>
+                    <th className="text-left px-4 py-4 text-[10px] font-black text-text-tertiary uppercase tracking-widest">Data</th>
+                    <th className="text-right px-4 py-4 text-[10px] font-black text-text-tertiary uppercase tracking-widest">Valor</th>
+                    <th className="text-center px-8 py-4 text-[10px] font-black text-text-tertiary uppercase tracking-widest">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light">
+                  {expenses.map((exp) => (
+                    <tr key={exp.id} className="hover:bg-surface-secondary/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <p className="text-sm font-bold text-text group-hover:text-brand-600 transition-colors">{exp.description}</p>
+                      </td>
+                      <td className="px-4 py-5">
+                        <span className="px-3 py-1 bg-surface-tertiary text-text-secondary text-[10px] font-bold rounded-lg border border-border" style={{ borderColor: exp.category?.color + '33' }}>
+                          {exp.category?.name || "Sem categoria"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 text-xs text-text-tertiary font-medium">
+                        {new Date(exp.date).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-5 text-right font-black text-sm text-text tabular-nums">
+                        {formatCurrency(Number(exp.amount))}
+                      </td>
+                      <td className="px-8 py-5 text-center">
+                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${exp.paid ? "bg-emerald-500/10 text-emerald-600" : "bg-warning/10 text-warning"}`}>
+                          {exp.paid ? "Pago" : "Pendente"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="py-20 text-center flex flex-col items-center justify-center opacity-30">
+                <Search className="w-12 h-12 mb-4" />
+                <p>Nenhum registro encontrado</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Register Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-lg glass border-border shadow-elevated">
+          <DialogHeader>
+            <DialogTitle className="text-text font-black tracking-tight text-xl">Registrar Nova Despesa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-text-secondary font-bold text-[10px] uppercase tracking-widest">Descrição do Gasto</Label>
+              <Input 
+                placeholder="Ex: Compra de hortifruti, Aluguel..."
+                value={newExpense.description}
+                onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                className="rounded-2xl border-2 focus:border-brand-500/50"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-text-secondary font-bold text-[10px] uppercase tracking-widest">Valor (R$)</Label>
+                <Input 
+                  type="number" 
+                  placeholder="0,00"
+                  value={newExpense.amount}
+                  onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                  className="rounded-2xl border-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-text-secondary font-bold text-[10px] uppercase tracking-widest">Data</Label>
+                <Input 
+                  type="date"
+                  value={newExpense.date}
+                  onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                  className="rounded-2xl border-2"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-text-secondary font-bold text-[10px] uppercase tracking-widest">Categoria Financeira</Label>
+                <button 
+                  onClick={() => setShowAddCat(!showAddCat)}
+                  className="text-[10px] font-black text-brand-600 uppercase hover:underline"
+                >
+                  {showAddCat ? "Selecionar Existente" : "+ Nova Categoria"}
+                </button>
+              </div>
+              
+              {showAddCat ? (
+                  <div 
+                    key="add-cat"
+                    className="flex gap-2"
+                  >
+                    <Input 
+                      placeholder="Nome da categoria..."
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      className="rounded-xl border-2"
+                    />
+                    <button 
+                      onClick={handleAddCategory}
+                      disabled={saving}
+                      className="px-4 bg-brand-600 text-white rounded-xl font-bold text-xs flex items-center justify-center min-w-[50px]"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "OK"}
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    key="select-cat"
+                    value={newExpense.categoryId}
+                    onChange={(e) => setNewExpense({ ...newExpense, categoryId: Number(e.target.value) || "" })}
+                    className="w-full h-12 rounded-2xl border-2 border-border bg-surface px-4 text-sm font-bold text-text focus:ring-2 focus:ring-brand-500 outline-none"
+                  >
+                    <option value="">Selecione categoria</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Label className="text-text-secondary font-bold text-[10px] uppercase tracking-widest">Pago?</Label>
+              <button 
+                onClick={() => setNewExpense({ ...newExpense, paid: !newExpense.paid })}
+                className={`w-12 h-6 rounded-full transition-colors relative ${newExpense.paid ? "bg-emerald-500" : "bg-slate-300"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${newExpense.paid ? "left-7" : "left-1"}`} />
+              </button>
+            </div>
+          </div>
+          <div className="flex gap-4 pt-6 border-t border-border-light">
+            <button onClick={() => setShowModal(false)} className="flex-1 py-4 text-sm font-black text-text-tertiary hover:text-text uppercase tracking-widest transition-colors">Cancelar</button>
+            <button 
+              onClick={handleSaveExpense} 
+              disabled={saving}
+              className="flex-[2] py-4 bg-brand-600 hover:bg-brand-500 text-white text-sm font-black rounded-2xl shadow-xl shadow-brand-500/20 transition-all uppercase tracking-widest flex items-center justify-center"
+            >
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Salvar Registro"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <style>{`
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.98) } to { opacity: 1; transform: scale(1) } }
+      `}</style>
+    </div>
+  );
+}

@@ -1,15 +1,13 @@
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { items } from "@/db/schema";
-import { getSession } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { getSession } from "@/lib/auth-server";
 import { normalizeItemName } from "@/lib/validation";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession(request.headers);
   if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
@@ -17,6 +15,8 @@ export async function PATCH(
   try {
     const { id } = await params;
     const itemId = Number(id);
+
+    const [oldItem] = await db.select().from(items).where(eq(items.id, itemId)).limit(1);
 
     const body = await request.json();
 
@@ -55,27 +55,26 @@ export async function PATCH(
 
     updateData.updatedAt = new Date();
 
-    const [item] = await db
-      .update(items)
-      .set(updateData)
-      .where(eq(items.id, itemId))
-      .returning();
+    const [item] = await db.update(items).set(updateData).where(eq(items.id, itemId)).returning();
+
+    await logAudit({
+      action: "UPDATE",
+      tableName: "items",
+      recordId: String(itemId),
+      userId: session.userId,
+      oldValues: oldItem,
+      newValues: { ...oldItem, ...updateData },
+    });
 
     return NextResponse.json(item);
   } catch (error: any) {
     console.error("Erro ao atualizar item:", error);
-    return NextResponse.json(
-      { error: error?.message || "Erro interno ao atualizar item" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erro interno ao atualizar item" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession(request.headers);
   if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
@@ -83,7 +82,17 @@ export async function DELETE(
   const { id } = await params;
   const itemId = Number(id);
 
+  const [oldItem] = await db.select().from(items).where(eq(items.id, itemId)).limit(1);
+
   await db.delete(items).where(eq(items.id, itemId));
+
+  await logAudit({
+    action: "DELETE",
+    tableName: "items",
+    recordId: String(itemId),
+    userId: session.userId,
+    oldValues: oldItem,
+  });
 
   return NextResponse.json({ success: true });
 }

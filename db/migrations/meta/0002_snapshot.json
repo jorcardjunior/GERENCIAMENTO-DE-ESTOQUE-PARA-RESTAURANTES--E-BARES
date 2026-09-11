@@ -1,0 +1,7 @@
+{
+  "id": "0002_professional_migration",
+  "prevId": "0001_volatile_dorian_gray",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {}
+}

@@ -187,348 +187,327 @@ export function suggestItemCategory(itemName: string): string | null {
 }
 
 const leetMap: Record<string, string> = {
-	"0": "o",
-	"1": "i",
-	"2": "z",
-	"3": "e",
-	"4": "a",
-	"5": "s",
-	"6": "g",
-	"7": "t",
-	"8": "b",
-	"9": "p",
+  "0": "o",
+  "1": "i",
+  "2": "z",
+  "3": "e",
+  "4": "a",
+  "5": "s",
+  "6": "g",
+  "7": "t",
+  "8": "b",
+  "9": "p",
 };
 
 const FOOD_DICT: Record<string, string[]> = {
-	arros: ["Arroz"],
-	aroz: ["Arroz"],
-	feijao: ["Feijão"],
-	frango: ["Frango"],
-	cebola: ["Cebola"],
-	alface: ["Alface"],
-	tomate: ["Tomate"],
-	cenoura: ["Cenoura"],
-	batata: ["Batata"],
-	mandioca: ["Mandioca"],
-	alcatra: ["Alcatra"],
-	picanha: ["Picanha"],
-	maminha: ["Maminha"],
-	fraldinha: ["Fraldinha"],
-	contrafile: ["Contrafilé"],
-	mignon: ["Filé Mignon"],
-	mignom: ["Filé Mignon"],
-	file: ["Filé"],
-	coxao: ["Coxão Mole"],
-	mussarela: ["Queijo Mussarela", "Mussarela"],
-	muzarela: ["Queijo Mussarela", "Mussarela"],
-	mucarela: ["Queijo Mussarela", "Mussarela"],
-	parmesao: ["Queijo Parmesão Ralado", "Parmesão Ralado"],
-	provolone: ["Queijo Provolone"],
-	gorgonzola: ["Queijo Gorgonzola"],
-	requeijao: ["Requeijão"],
-	catupiry: ["Requeijão"],
-	catupiri: ["Requeijão"],
-	manteiga: ["Manteiga"],
-	mantega: ["Manteiga"],
-	margarina: ["Margarina"],
-	leite: ["Leite Integral"],
-	leit: ["Leite Integral"],
-	condensado: ["Leite Condensado"],
-	iogurte: ["Iogurte Natural"],
-	iogurt: ["Iogurte Natural"],
-	ioigurte: ["Iogurte Natural"],
-	polvilho: ["Polvilho Doce", "Polvilho Azedo"],
-	farinha: ["Farinha de Trigo"],
-	farinha_trigo: ["Farinha de Trigo"],
-	trigo: ["Farinha de Trigo"],
-	acucar: ["Açúcar"],
-	assucar: ["Açúcar"],
-	sal: ["Sal"],
-	calabresa: ["Linguiça Calabresa"],
-	calabreza: ["Linguiça Calabresa"],
-	toscana: ["Linguiça Toscana"],
-	linguica: ["Linguiça"],
-	salsicha: ["Salsicha"],
-	presunto: ["Presunto Cozido"],
-	prezunto: ["Presunto Cozido"],
-	peito: ["Peito de Frango"],
-	sobrecoxa: ["Sobrecoxa de Frango"],
-	coxinha: ["Coxinha da Asa"],
-	bacon: ["Bacon"],
-	beicon: ["Bacon"],
-	pao: ["Pão"],
-	miojo: ["Macarrão Instantâneo"],
-	macarrao: ["Macarrão"],
-	macarrao_espaguete: ["Macarrão Espaguete"],
-	espaguete: ["Macarrão Espaguete"],
-	espaguetti: ["Macarrão Espaguete"],
-	lasanha: ["Massa para Lasanha"],
-	lasagna: ["Massa para Lasanha"],
-	pizza: ["Massa de Pizza"],
-	cerveja: ["Cerveja"],
-	ceva: ["Cerveja"],
-	breja: ["Cerveja"],
-	refri: ["Refrigerante"],
-	refrigerante: ["Refrigerante"],
-	guarana: ["Guaraná"],
-	suco: ["Suco"],
-	agua: ["Água"],
-	oleo: ["Óleo de Soja"],
-	azeite: ["Azeite de Oliva"],
-	azeyte: ["Azeite de Oliva"],
-	vinagre: ["Vinagre"],
-	vinagri: ["Vinagre"],
-	shoyu: ["Molho Shoyu"],
-	molho: ["Molho"],
-	mostarda: ["Mostarda"],
-	mustarda: ["Mostarda"],
-	ketchup: ["Ketchup"],
-	catchup: ["Ketchup"],
-	maionese: ["Maionese"],
-	maiones: ["Maionese"],
-	mionese: ["Maionese"],
-	oregano: ["Orégano"],
-	oregan: ["Orégano"],
-	cominho: ["Cominho"],
-	cuminho: ["Cominho"],
-	colorau: ["Colorau"],
-	paprica: ["Páprica"],
-	canela: ["Canela"],
-	chocolate: ["Chocolate"],
-	chocolat: ["Chocolate"],
-	baunilha: ["Baunilha"],
-	baunilia: ["Baunilha"],
-	coco: ["Coco Ralado", "Coco"],
-	leitedecoco: ["Leite de Coco"],
-	fermento: ["Fermento Biológico", "Fermento Químico"],
-	fermendo: ["Fermento Biológico", "Fermento Químico"],
-	bicarbonato: ["Bicarbonato de Sódio"],
-	detergente: ["Detergente"],
-	luva: ["Luva Descartável"],
-	luvas: ["Luva Descartável"],
-	sacola: ["Sacola Plástica"],
-	papeltoalha: ["Papel Toalha"],
-	papelfilme: ["Papel Filme"],
-	papelaluminio: ["Papel Alumínio"],
-	aluminio: ["Papel Alumínio"],
-	esponja: ["Esponja"],
-	sabao: ["Sabão em Pó"],
-	sabonete: ["Sabonete"],
-	amaciante: ["Amaciante"],
-	aguasanitaria: ["Água Sanitária"],
-	alcool: ["Álcool 70%"],
-	desinfetante: ["Desinfetante"],
-	inseticida: ["Inseticida"],
-	cafe: ["Café"],
-	po_de_cafe: ["Café"],
-	pocafe: ["Café"],
-	leiteempo: ["Leite em Pó"],
-	leitepo: ["Leite em Pó"],
-	achocolatado: ["Achocolatado"],
-	toddy: ["Achocolatado"],
-	neston: ["Achocolatado"],
-	ovomaltine: ["Achocolatado"],
-	biscoito: ["Biscoito"],
-	biscoto: ["Biscoito"],
-	bolacha: ["Bolacha"],
-	creme_dental: ["Creme Dental"],
-	tempero: ["Tempero"],
-	alho: ["Alho"],
-	cebolinha: ["Cebolinha"],
-	salsinha: ["Salsinha"],
-	coentro: ["Coentro"],
-	manjericao: ["Manjericão"],
-	hortela: ["Hortelã"],
-	alecrim: ["Alecrim"],
-	tomilho: ["Tomilho"],
-	louro: ["Louro"],
-	farinhalactea: ["Farinha Láctea"],
-	achocolatadoempo: ["Achocolatado em Pó"],
+  arros: ["Arroz"],
+  aroz: ["Arroz"],
+  feijao: ["Feijão"],
+  frango: ["Frango"],
+  cebola: ["Cebola"],
+  alface: ["Alface"],
+  tomate: ["Tomate"],
+  cenoura: ["Cenoura"],
+  batata: ["Batata"],
+  mandioca: ["Mandioca"],
+  alcatra: ["Alcatra"],
+  picanha: ["Picanha"],
+  maminha: ["Maminha"],
+  fraldinha: ["Fraldinha"],
+  contrafile: ["Contrafilé"],
+  mignon: ["Filé Mignon"],
+  mignom: ["Filé Mignon"],
+  file: ["Filé"],
+  coxao: ["Coxão Mole"],
+  mussarela: ["Queijo Mussarela", "Mussarela"],
+  muzarela: ["Queijo Mussarela", "Mussarela"],
+  mucarela: ["Queijo Mussarela", "Mussarela"],
+  parmesao: ["Queijo Parmesão Ralado", "Parmesão Ralado"],
+  provolone: ["Queijo Provolone"],
+  gorgonzola: ["Queijo Gorgonzola"],
+  requeijao: ["Requeijão"],
+  catupiry: ["Requeijão"],
+  catupiri: ["Requeijão"],
+  manteiga: ["Manteiga"],
+  mantega: ["Manteiga"],
+  margarina: ["Margarina"],
+  leite: ["Leite Integral"],
+  leit: ["Leite Integral"],
+  condensado: ["Leite Condensado"],
+  iogurte: ["Iogurte Natural"],
+  iogurt: ["Iogurte Natural"],
+  ioigurte: ["Iogurte Natural"],
+  polvilho: ["Polvilho Doce", "Polvilho Azedo"],
+  farinha: ["Farinha de Trigo"],
+  farinha_trigo: ["Farinha de Trigo"],
+  trigo: ["Farinha de Trigo"],
+  acucar: ["Açúcar"],
+  assucar: ["Açúcar"],
+  sal: ["Sal"],
+  calabresa: ["Linguiça Calabresa"],
+  calabreza: ["Linguiça Calabresa"],
+  toscana: ["Linguiça Toscana"],
+  linguica: ["Linguiça"],
+  salsicha: ["Salsicha"],
+  presunto: ["Presunto Cozido"],
+  prezunto: ["Presunto Cozido"],
+  peito: ["Peito de Frango"],
+  sobrecoxa: ["Sobrecoxa de Frango"],
+  coxinha: ["Coxinha da Asa"],
+  bacon: ["Bacon"],
+  beicon: ["Bacon"],
+  pao: ["Pão"],
+  miojo: ["Macarrão Instantâneo"],
+  macarrao: ["Macarrão"],
+  macarrao_espaguete: ["Macarrão Espaguete"],
+  espaguete: ["Macarrão Espaguete"],
+  espaguetti: ["Macarrão Espaguete"],
+  lasanha: ["Massa para Lasanha"],
+  lasagna: ["Massa para Lasanha"],
+  pizza: ["Massa de Pizza"],
+  cerveja: ["Cerveja"],
+  ceva: ["Cerveja"],
+  breja: ["Cerveja"],
+  refri: ["Refrigerante"],
+  refrigerante: ["Refrigerante"],
+  guarana: ["Guaraná"],
+  suco: ["Suco"],
+  agua: ["Água"],
+  oleo: ["Óleo de Soja"],
+  azeite: ["Azeite de Oliva"],
+  azeyte: ["Azeite de Oliva"],
+  vinagre: ["Vinagre"],
+  vinagri: ["Vinagre"],
+  shoyu: ["Molho Shoyu"],
+  molho: ["Molho"],
+  mostarda: ["Mostarda"],
+  mustarda: ["Mostarda"],
+  ketchup: ["Ketchup"],
+  catchup: ["Ketchup"],
+  maionese: ["Maionese"],
+  maiones: ["Maionese"],
+  mionese: ["Maionese"],
+  oregano: ["Orégano"],
+  oregan: ["Orégano"],
+  cominho: ["Cominho"],
+  cuminho: ["Cominho"],
+  colorau: ["Colorau"],
+  paprica: ["Páprica"],
+  canela: ["Canela"],
+  chocolate: ["Chocolate"],
+  chocolat: ["Chocolate"],
+  baunilha: ["Baunilha"],
+  baunilia: ["Baunilha"],
+  coco: ["Coco Ralado", "Coco"],
+  leitedecoco: ["Leite de Coco"],
+  fermento: ["Fermento Biológico", "Fermento Químico"],
+  fermendo: ["Fermento Biológico", "Fermento Químico"],
+  bicarbonato: ["Bicarbonato de Sódio"],
+  detergente: ["Detergente"],
+  luva: ["Luva Descartável"],
+  luvas: ["Luva Descartável"],
+  sacola: ["Sacola Plástica"],
+  papeltoalha: ["Papel Toalha"],
+  papelfilme: ["Papel Filme"],
+  papelaluminio: ["Papel Alumínio"],
+  aluminio: ["Papel Alumínio"],
+  esponja: ["Esponja"],
+  sabao: ["Sabão em Pó"],
+  sabonete: ["Sabonete"],
+  amaciante: ["Amaciante"],
+  aguasanitaria: ["Água Sanitária"],
+  alcool: ["Álcool 70%"],
+  desinfetante: ["Desinfetante"],
+  inseticida: ["Inseticida"],
+  cafe: ["Café"],
+  po_de_cafe: ["Café"],
+  pocafe: ["Café"],
+  leiteempo: ["Leite em Pó"],
+  leitepo: ["Leite em Pó"],
+  achocolatado: ["Achocolatado"],
+  toddy: ["Achocolatado"],
+  neston: ["Achocolatado"],
+  ovomaltine: ["Achocolatado"],
+  biscoito: ["Biscoito"],
+  biscoto: ["Biscoito"],
+  bolacha: ["Bolacha"],
+  creme_dental: ["Creme Dental"],
+  tempero: ["Tempero"],
+  alho: ["Alho"],
+  cebolinha: ["Cebolinha"],
+  salsinha: ["Salsinha"],
+  coentro: ["Coentro"],
+  manjericao: ["Manjericão"],
+  hortela: ["Hortelã"],
+  alecrim: ["Alecrim"],
+  tomilho: ["Tomilho"],
+  louro: ["Louro"],
+  farinhalactea: ["Farinha Láctea"],
+  achocolatadoempo: ["Achocolatado em Pó"],
 };
 
 function levenshtein(a: string, b: string): number {
-	const m = a.length;
-	const n = b.length;
-	const dp: number[][] = Array.from({ length: m + 1 }, () =>
-		Array(n + 1).fill(0),
-	);
-	for (let i = 0; i <= m; i++) dp[i][0] = i;
-	for (let j = 0; j <= n; j++) dp[0][j] = j;
-	for (let i = 1; i <= m; i++) {
-		for (let j = 1; j <= n; j++) {
-			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-			dp[i][j] = Math.min(
-				dp[i - 1][j] + 1,
-				dp[i][j - 1] + 1,
-				dp[i - 1][j - 1] + cost,
-			);
-		}
-	}
-	return dp[m][n];
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
 }
 
-function normalize(str: string): string {
-	let out = "";
-	for (const ch of str.toLowerCase().normalize("NFD")) {
-		if ((ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9")) {
-			out += ch;
-		}
-	}
-	return out;
+export function normalize(str: string): string {
+  let out = "";
+  for (const ch of str.toLowerCase().normalize("NFD")) {
+    if ((ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9")) {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 const NORMALIZED_DICT: Record<string, string[]> = {};
 for (const key of Object.keys(FOOD_DICT)) {
-	NORMALIZED_DICT[normalize(key)] = FOOD_DICT[key];
+  NORMALIZED_DICT[normalize(key)] = FOOD_DICT[key];
 }
 
 export function normalizeName(input: string): string {
-	const name = input.trim();
-	if (!name) return "";
+  const name = input.trim();
+  if (!name) return "";
 
-	let normalized = name
-		.toLowerCase()
-		.split("")
-		.map((char) => leetMap[char] || char)
-		.join("");
+  let normalized = name
+    .toLowerCase()
+    .split("")
+    .map((char) => leetMap[char] || char)
+    .join("");
 
-	normalized = normalized
-		.split(/\s+/)
-		.filter(Boolean)
-		.map((word) => {
-			const special = [
-				"da",
-				"de",
-				"do",
-				"das",
-				"dos",
-				"e",
-				"em",
-				"com",
-				"para",
-				"sem",
-			];
-			if (special.includes(word)) return word;
-			return word.charAt(0).toUpperCase() + word.slice(1);
-		})
-		.join(" ");
+  normalized = normalized
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      const special = ["da", "de", "do", "das", "dos", "e", "em", "com", "para", "sem"];
+      if (special.includes(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
 
-	return normalized;
+  return normalized;
 }
 
 export function normalizeCategoryName(input: string): string {
-	return normalizeName(input);
+  return normalizeName(input);
 }
 
 export function normalizeItemName(input: string): string {
-	return normalizeName(input);
+  return normalizeName(input);
 }
 
-export const KNOWN_CATEGORIES: string[] = [
-	...new Set(Object.values(ITEM_CATEGORY_MAP)),
-].sort((a, b) => a.localeCompare(b, "pt-BR"));
+export const KNOWN_CATEGORIES: string[] = [...new Set(Object.values(ITEM_CATEGORY_MAP))].sort(
+  (a, b) => a.localeCompare(b, "pt-BR"),
+);
 
 export function suggestCategories(input: string): string[] {
-	const q = normalize(input);
-	if (!q || q.length < 1) return [];
-	return KNOWN_CATEGORIES.filter((cat) => {
-		const norm = normalize(cat);
-		return norm.startsWith(q) || norm.includes(q);
-	}).slice(0, 8);
+  const q = normalize(input);
+  if (!q || q.length < 1) return [];
+  return KNOWN_CATEGORIES.filter((cat) => {
+    const norm = normalize(cat);
+    return norm.startsWith(q) || norm.includes(q);
+  }).slice(0, 8);
 }
 
 export type SuggestionResult = {
-	normalized: string;
-	suggestions: string[];
-	hasSuggestion: boolean;
-	message: string | null;
+  normalized: string;
+  suggestions: string[];
+  hasSuggestion: boolean;
+  message: string | null;
 };
 
 export function validateItemCategory(
-	itemName: string,
-	selectedCategory: string,
+  itemName: string,
+  selectedCategory: string,
 ): { valid: boolean; expectedCategory: string | null; message: string | null } {
-	const key = normalize(itemName);
-	const expected = ITEM_CATEGORY_MAP[key];
-	if (!expected) {
-		return { valid: true, expectedCategory: null, message: null };
-	}
-	if (expected !== selectedCategory) {
-		return {
-			valid: false,
-			expectedCategory: expected,
-			message: `"${normalizeItemName(itemName)}" pertence à categoria "${expected}", não a "${selectedCategory}". Selecione a categoria correta.`,
-		};
-	}
-	return { valid: true, expectedCategory: null, message: null };
+  const key = normalize(itemName);
+  const expected = ITEM_CATEGORY_MAP[key];
+  if (!expected) {
+    return { valid: true, expectedCategory: null, message: null };
+  }
+  if (expected !== selectedCategory) {
+    return {
+      valid: false,
+      expectedCategory: expected,
+      message: `"${normalizeItemName(itemName)}" pertence à categoria "${expected}", não a "${selectedCategory}". Selecione a categoria correta.`,
+    };
+  }
+  return { valid: true, expectedCategory: null, message: null };
 }
 
 export function suggestItemCorrection(
-	input: string,
-	existingItems: string[] = [],
+  input: string,
+  existingItems: string[] = [],
 ): SuggestionResult {
-	const trimmed = input.trim();
-	if (!trimmed) {
-		return {
-			normalized: "",
-			suggestions: [],
-			hasSuggestion: false,
-			message: null,
-		};
-	}
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return {
+      normalized: "",
+      suggestions: [],
+      hasSuggestion: false,
+      message: null,
+    };
+  }
 
-	const normalized = normalizeItemName(trimmed);
-	const key = normalize(trimmed);
+  const normalized = normalizeItemName(trimmed);
+  const key = normalize(trimmed);
 
-	const dictMatch = NORMALIZED_DICT[key];
-	if (dictMatch && normalized !== dictMatch[0]) {
-		return {
-			normalized,
-			suggestions: dictMatch,
-			hasSuggestion: true,
-			message: `Você quis dizer "${dictMatch[0]}"?`,
-		};
-	}
+  const dictMatch = NORMALIZED_DICT[key];
+  if (dictMatch && normalized !== dictMatch[0]) {
+    return {
+      normalized,
+      suggestions: dictMatch,
+      hasSuggestion: true,
+      message: `Você quis dizer "${dictMatch[0]}"?`,
+    };
+  }
 
-	const similar: Array<{ name: string; distance: number }> = [];
+  const similar: Array<{ name: string; distance: number }> = [];
 
-	for (const existing of existingItems) {
-		const normExisting = normalize(existing);
-		const dist = levenshtein(key, normExisting);
-		const similarity = 1 - dist / Math.max(key.length, normExisting.length);
-		if (similarity >= 0.55 && dist > 0) {
-			similar.push({ name: existing, distance: dist });
-		}
-	}
+  for (const existing of existingItems) {
+    const normExisting = normalize(existing);
+    const dist = levenshtein(key, normExisting);
+    const similarity = 1 - dist / Math.max(key.length, normExisting.length);
+    if (similarity >= 0.55 && dist > 0) {
+      similar.push({ name: existing, distance: dist });
+    }
+  }
 
-	for (const [dictKey, suggestions] of Object.entries(NORMALIZED_DICT)) {
-		const dist = levenshtein(key, dictKey);
-		const similarity = 1 - dist / Math.max(key.length, dictKey.length);
-		if (
-			similarity >= 0.6 &&
-			dist > 0 &&
-			!similar.some((s) => suggestions.includes(s.name))
-		) {
-			similar.push({ name: suggestions[0], distance: dist });
-		}
-	}
+  for (const [dictKey, suggestions] of Object.entries(NORMALIZED_DICT)) {
+    const dist = levenshtein(key, dictKey);
+    const similarity = 1 - dist / Math.max(key.length, dictKey.length);
+    if (similarity >= 0.6 && dist > 0 && !similar.some((s) => suggestions.includes(s.name))) {
+      similar.push({ name: suggestions[0], distance: dist });
+    }
+  }
 
-	similar.sort((a, b) => a.distance - b.distance);
+  similar.sort((a, b) => a.distance - b.distance);
 
-	if (similar.length > 0) {
-		const best = similar.slice(0, 3).map((s) => s.name);
-		return {
-			normalized,
-			suggestions: best,
-			hasSuggestion: true,
-			message: `Você quis dizer "${best[0]}"?`,
-		};
-	}
+  if (similar.length > 0) {
+    const best = similar.slice(0, 3).map((s) => s.name);
+    return {
+      normalized,
+      suggestions: best,
+      hasSuggestion: true,
+      message: `Você quis dizer "${best[0]}"?`,
+    };
+  }
 
-	return {
-		normalized,
-		suggestions: [],
-		hasSuggestion: false,
-		message: null,
-	};
+  return {
+    normalized,
+    suggestions: [],
+    hasSuggestion: false,
+    message: null,
+  };
 }

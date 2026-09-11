@@ -1,17 +1,15 @@
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth-server";
+import { ADMIN_SETTINGS_KEYS, DEFAULT_SETTINGS } from "@/lib/settings";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-const DEFAULT_SETTINGS = {
-  alert_expiry_days: "7",
-  alert_low_stock_pct: "10",
-};
+const ALLOWED_KEYS = new Set(ADMIN_SETTINGS_KEYS);
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getSession();
+    const session = await getSession(request.headers);
     if (!session) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -30,15 +28,15 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const session = await getSession();
-    if (!session || session.role !== "admin") {
+    const session = await getSession(request.headers);
+    if (!session || (session.role !== "admin" && session.role !== "owner")) {
       return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
     }
 
-    const body = await request.json() as Record<string, string>;
+    const body = (await request.json()) as Record<string, string>;
 
     for (const [key, value] of Object.entries(body)) {
-      if (!(key in DEFAULT_SETTINGS)) continue;
+      if (!ALLOWED_KEYS.has(key as any)) continue;
 
       const existing = await db
         .select({ id: settings.id })
@@ -52,9 +50,7 @@ export async function PUT(request: Request) {
           .set({ value, updatedAt: new Date() })
           .where(eq(settings.key, key));
       } else {
-        await db
-          .insert(settings)
-          .values({ key, value });
+        await db.insert(settings).values({ key, value });
       }
     }
 
@@ -62,7 +58,7 @@ export async function PUT(request: Request) {
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "Erro ao salvar configurações" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
